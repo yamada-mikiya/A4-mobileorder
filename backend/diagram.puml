@@ -1,0 +1,76 @@
+@startuml mobileorder
+' hide the spot
+hide circle
+
+' avoid problems with angled crows feet
+skinparam linetype ortho
+
+entity "users" as users {
+  user_id
+  --
+  email
+  created_at
+  updated_at
+}
+
+entity "orders" as orders {
+  order_id
+  --
+  user_id<<FK>>
+  shop_id <<FK>>
+  order_date
+  total_amount
+  status
+  created_at
+  updated_at
+}
+
+entity "order_product" as order_product {
+  order_product_id
+  --
+  order_id<<FK>>
+  product_id<<FK>>
+  quantity
+  price_at_order
+  updated_at
+  created_at
+}
+
+entity "products" as products {
+  product_id
+  --
+  product_name
+  description
+  price
+  is_available
+  created_at
+  updated_at
+}
+
+entity "shop_product" as shop_product {
+  shop_product_id
+  --
+  product_id<<FK>>
+  shop_id<<FK>>
+  created_at
+  updated_at
+}
+
+entity "shops" as shops {
+  shop_id
+  --
+  shop_name
+  description
+  location
+  is_open
+  created_at
+  updated_at
+}
+
+users ||--|{ orders
+orders ||--|{ order_product
+products ||--|{ order_product
+products ||--|{ shop_product
+shops ||--|{ shop_product
+shops ||--|{ orders
+@enduml
