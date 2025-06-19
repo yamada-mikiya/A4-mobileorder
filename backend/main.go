@@ -6,7 +6,7 @@ import (
 
 	"github.com/A4-dev-team/mobileorder.git/api"
 	"github.com/A4-dev-team/mobileorder.git/controllers"
-	"github.com/A4-dev-team/mobileorder.git/db"
+	"github.com/A4-dev-team/mobileorder.git/connectDB"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/A4-dev-team/mobileorder.git/services"
 
@@ -14,14 +14,15 @@ import (
 )
 
 func main() {
-	db := db.NewDB()
+	db := connectDB.NewDB()
 
 	adminRepository := repositories.NewAdminRepository(db)
-	authRepository := repositories.NewAuthRepository(db)
+	userRepository := repositories.NewUserRepository(db)
 	orderRepository := repositories.NewOrderRepository(db)
+	shopRepository := repositories.NewShopRepository(db)
 
 	adminService := services.NewAdminService(adminRepository)
-	authService := services.NewAuthService(authRepository)
+	authService := services.NewAuthService(userRepository, shopRepository)
 	orderService := services.NewOrderService(orderRepository)
 
 	adminController := controllers.NewAdminController(adminService)
@@ -32,7 +33,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8090"
+		port = "8080"
 	}
 	log.Printf("server start at port %s", port)
 	log.Fatal(e.Start(":" + port))

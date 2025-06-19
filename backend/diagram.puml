@@ -4,11 +4,13 @@ hide circle
 
 ' avoid problems with angled crows feet
 skinparam linetype ortho
+left to right direction
 
 entity "users" as users {
   user_id
   --
   email
+  role
   created_at
   updated_at
 }
@@ -59,6 +61,7 @@ entity "shop_product" as shop_product {
 entity "shops" as shops {
   shop_id
   --
+  admin_user_id<<FK>>
   shop_name
   description
   location
@@ -67,6 +70,7 @@ entity "shops" as shops {
   updated_at
 }
 
+users ||--o{ shops
 users ||--|{ orders
 orders ||--|{ order_product
 products ||--|{ order_product
