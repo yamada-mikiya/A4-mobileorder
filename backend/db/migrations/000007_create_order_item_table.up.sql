@@ -11,6 +11,6 @@ CREATE TABLE order_product (
 );
 
 CREATE TRIGGER trigger_update_orders_updated_at
-BEFORE UPDATE ON orders
+BEFORE UPDATE ON order_product
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
