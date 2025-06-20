@@ -8,7 +8,7 @@ docker compose up --build
 cd backend
 docker compose up
 ```
-### 2.Docker環境を落とす 
+### 2.Docker環境を落とす
 ```bash
 # コンテナを終了（データベースの中身は残す）
 docker compose down
@@ -22,7 +22,7 @@ docker compose down -v
 docker compose exec db psql -U user -d dbname
 #userとdbnameは自分の.envファイルの設定を見て書き換えてください。.envファイルの例は.env.exampleにあります。
 ```
-### http://localhost:8080/auth/login　と　http://localhost:8080/auth/login　をポストマンで実行するには
+### http://localhost:8080/auth/signup　と　http://localhost:8080/auth/login　をポストマンで実行するには
 ```bash
 # POSTメソッドで行う。JSON形式でリクエストボディに下のように書く。(Content-Typeはapplication/jsonであることに注意)
 {
