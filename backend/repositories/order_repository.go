@@ -2,19 +2,19 @@ package repositories
 
 import "database/sql"
 
-type IOrderRepository interface {
+type OrderRepository interface {
 	GetProductList(shopID int) error
 }
 
-type OrderRepository struct {
+type orderRepository struct {
 	db *sql.DB
 }
 
-func NewOrderRepository (db *sql.DB) IOrderRepository {
-	return &OrderRepository{db}
+func NewOrderRepository (db *sql.DB) OrderRepository {
+	return &orderRepository{db}
 }
 
-func (r *OrderRepository) GetProductList (shopID int) error {
+func (r *orderRepository) GetProductList (shopID int) error {
 	//TODO
 	return nil
 }

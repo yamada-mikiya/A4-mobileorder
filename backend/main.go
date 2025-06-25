@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/A4-dev-team/mobileorder.git/api"
-	"github.com/A4-dev-team/mobileorder.git/controllers"
 	"github.com/A4-dev-team/mobileorder.git/connectDB"
+	"github.com/A4-dev-team/mobileorder.git/controllers"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/A4-dev-team/mobileorder.git/services"
 
@@ -14,7 +19,8 @@ import (
 )
 
 func main() {
-	db := connectDB.NewDB()
+	db, closer := connectDB.NewDB()
+	defer closer()
 
 	adminRepository := repositories.NewAdminRepository(db)
 	userRepository := repositories.NewUserRepository(db)
@@ -35,6 +41,25 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("server start at port %s", port)
-	log.Fatal(e.Start(":" + port))
+	go func() {
+		log.Printf("server start at port %s", port)
+		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting ndown server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.Shutdown(ctx); err != nil {
+		e.Logger.Fatal(err)
+	}
+	log.Println("Server gracefully stopped")
+
 }

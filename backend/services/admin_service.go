@@ -2,19 +2,19 @@ package services
 
 import "github.com/A4-dev-team/mobileorder.git/repositories"
 
-type IAdminServicer interface {
+type AdminServicer interface {
 	UpdateOrderStatus(orderID int, status string) error
 }
 
-type AdminService struct {
-	repo repositories.IAdminRepository
+type adminService struct {
+	repo repositories.AdminRepository
 }
 
-func NewAdminService(r repositories.IAdminRepository) IAdminServicer {
-	return &AdminService{repo: r}
+func NewAdminService(r repositories.AdminRepository) AdminServicer {
+	return &adminService{repo: r}
 }
 
-func (s *AdminService) UpdateOrderStatus(orderID int, status string) error {
+func (s *adminService) UpdateOrderStatus(orderID int, status string) error {
 	//TODO
 	return nil
 }

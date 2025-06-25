@@ -7,28 +7,28 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type IAdminController interface {
+type AdminController interface {
 	GetAdminOrderListHandler(ctx echo.Context) error
 	UpdateOrderStatusHandler(ctx echo.Context) error
 	UpdateProductAvailabilityHandler(ctx echo.Context) error
 }
 
-type AdminController struct {
-	service services.IAdminServicer
+type adminController struct {
+	service services.AdminServicer
 }
 
-func NewAdminController(s services.IAdminServicer) IAdminController {
-	return &AdminController{service: s}
+func NewAdminController(s services.AdminServicer) AdminController {
+	return &adminController{service: s}
 }
 
-func (c *AdminController) GetAdminOrderListHandler(ctx echo.Context) error {
+func (c *adminController) GetAdminOrderListHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Get order list")
 }
 
-func (c *AdminController) UpdateOrderStatusHandler(ctx echo.Context) error {
+func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Update order status ")
 }
 
-func (c *AdminController) UpdateProductAvailabilityHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Update Product Availability")
+func (c *adminController) UpdateProductAvailabilityHandler(ctx echo.Context) error {
+	return ctx.String(http.StatusOK, "Update product availability")
 }

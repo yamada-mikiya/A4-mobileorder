@@ -7,19 +7,19 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/models"
 )
 
-type IShopRepository interface {
+type ShopRepository interface {
 	GetShopByAdminID(adminID int) (models.Shop, error)
 }
 
-type ShopRepository struct {
+type shopRepository struct {
 	db *sql.DB
 }
 
-func NewShopRepository(db *sql.DB) IShopRepository {
-	return &ShopRepository{db: db}
+func NewShopRepository(db *sql.DB) ShopRepository {
+	return &shopRepository{db: db}
 }
 
-func (r *ShopRepository) GetShopByAdminID(adminID int) (models.Shop, error) {
+func (r *shopRepository) GetShopByAdminID(adminID int) (models.Shop, error) {
 	shop := models.Shop{}
 
 	row := r.db.QueryRow(

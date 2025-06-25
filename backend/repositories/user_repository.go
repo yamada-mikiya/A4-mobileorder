@@ -7,20 +7,20 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/models"
 )
 
-type IUserRepository interface {
+type UserRepository interface {
 	CreateUser(user *models.User) error
 	GetUserByEmail(email string) (models.User, error)
 }
 
-type UserRepository struct {
+type userRepository struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) IUserRepository {
-	return &UserRepository{db}
+func NewUserRepository(db *sql.DB) UserRepository {
+	return &userRepository{db}
 }
 
-func (r *UserRepository) CreateUser(user *models.User) error {
+func (r *userRepository) CreateUser(user *models.User) error {
 
 	err := r.db.QueryRow(
 		"INSERT INTO users (email) VALUES ($1) RETURNING user_id",
@@ -33,7 +33,7 @@ func (r *UserRepository) CreateUser(user *models.User) error {
 	return nil
 }
 
-func (r *UserRepository) GetUserByEmail(email string) (models.User, error) {
+func (r *userRepository) GetUserByEmail(email string) (models.User, error) {
 	user := models.User{}
 
 	row := r.db.QueryRow(

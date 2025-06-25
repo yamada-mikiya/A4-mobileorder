@@ -12,22 +12,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type IAuthServicer interface {
+type AuthServicer interface {
 	SignUp(user models.User) (models.UserResponse, string, error)
 	createToken(user models.User) (string, error)
 	LogIn(user models.User) (string, error)
 }
 
-type AuthService struct {
-	usr repositories.IUserRepository
-	shr repositories.IShopRepository
+type authService struct {
+	usr repositories.UserRepository
+	shr repositories.ShopRepository
 }
 
-func NewAuthService(usr repositories.IUserRepository, shr repositories.IShopRepository) IAuthServicer {
-	return &AuthService{usr, shr}
+func NewAuthService(usr repositories.UserRepository, shr repositories.ShopRepository) AuthServicer {
+	return &authService{usr, shr}
 }
 
-func (s *AuthService) SignUp(user models.User) (models.UserResponse, string, error) {
+func (s *authService) SignUp(user models.User) (models.UserResponse, string, error) {
 
 	if !strings.Contains(user.Email, "@") {
 		return models.UserResponse{}, "", errors.New("invalid email format")
@@ -49,7 +49,7 @@ func (s *AuthService) SignUp(user models.User) (models.UserResponse, string, err
 	return resUser, tokenString, nil
 }
 
-func (s *AuthService) createToken(user models.User) (string, error) {
+func (s *authService) createToken(user models.User) (string, error) {
 	claims := &models.JwtCustomClaims{
 		UserID: user.UserID,
 		Role:   user.Role,
@@ -79,7 +79,7 @@ func (s *AuthService) createToken(user models.User) (string, error) {
 	return tokenString, nil
 }
 
-func (s *AuthService) LogIn(user models.User) (string, error) {
+func (s *authService) LogIn(user models.User) (string, error) {
 
 	if !strings.Contains(user.Email, "@") {
 		return "", errors.New("invalid email format")

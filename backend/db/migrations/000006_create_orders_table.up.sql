@@ -1,9 +1,10 @@
 CREATE TABLE orders (
     order_id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id INT,
     shop_id INT NOT NULL,
     order_date TIMESTAMP NOT NULL,
     total_amount DECIMAL(10, 2) NOT NULL,
+    guest_order_token VARCHAR(255) UNIQUE NULL,
     status VARCHAR(50),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),

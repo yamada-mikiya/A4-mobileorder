@@ -14,6 +14,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY ./entrypoint.sh /app/entrypoint.sh
+COPY ./mockData.sql /app/mockData.sql
 COPY . .
 
 ENTRYPOINT ["/app/entrypoint.sh"]

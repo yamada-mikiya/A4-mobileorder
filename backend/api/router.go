@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func NewRouter(adc controllers.IAdminController, auc controllers.IAuthController, orc controllers.IOrderController) *echo.Echo {
+func NewRouter(adc controllers.AdminController, auc controllers.AuthController, orc controllers.OrderController) *echo.Echo {
 	e := echo.New()
 
 	jwtConfig := echojwt.Config{
@@ -23,33 +23,28 @@ func NewRouter(adc controllers.IAdminController, auc controllers.IAuthController
 		TokenLookup:   "header:Authorization:Bearer ",
 		SigningMethod: "HS256",
 	}
+	jwtMiddleware := echojwt.WithConfig(jwtConfig)
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
-
-	// Authentication
+	//認証無し
 	e.POST("/auth/signup", auc.SignUpHandler)
 	e.POST("/auth/login", auc.LogInHandler)
+	e.GET("/shops/:shop_id/products", orc.GetProductListHandler) // 商品一覧ページと注文ページのための情報取得
+	e.POST("/shops/:shop_id/orders", orc.CreateOrderHandler)                    // 注文作成
 
-	// for Customers
-	e.GET("/shops/:shop_id/products", orc.GetProductListHandler) // 商品一覧取得
-	customerGroup := e.Group("/orders")
-	customerGroup.Use(echojwt.WithConfig(jwtConfig))
+	//認証あり
+	e.GET("/orders", orc.GetOrderDetailHandler, jwtMiddleware)        // 一覧注文確認（注文番号など）
+	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware) // 注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
 
-	customerGroup.POST("/orders", orc.CreateOrderHandler)                    // 注文作成
-	customerGroup.GET("/orders/:order_id", orc.GetOrderDetailHandler)        // 注文確認（注文番号など）
-	customerGroup.GET("/orders/:order_id/status", orc.GetOrderStatusHandler) // 注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
-
-	// for Admin
 	adminGroup := e.Group("/admin")
-	adminGroup.Use(echojwt.WithConfig(jwtConfig))
-	adminGroup.Use(middlewares.AdminRequired)
-
-	adminGroup.GET("/admin/shops/:shop_id/orders", adc.GetAdminOrderListHandler)                       // 管理者の注文一覧（クエリで絞り込み）
-	adminGroup.PATCH("/admin/orders/:order_id", adc.UpdateOrderStatusHandler)                          // 管理者が注文ステータスを更新
-	adminGroup.PATCH("/admin/products/:product_id/availability", adc.UpdateProductAvailabilityHandler) // 商品の在庫状態更新
-
+	adminGroup.Use(jwtMiddleware, middlewares.AdminRequired)
+	{
+		adminGroup.GET("/shops/:shop_id/orders", adc.GetAdminOrderListHandler)                       // 管理者の注文一覧（クエリで絞り込み）
+		adminGroup.PATCH("/orders/:order_id", adc.UpdateOrderStatusHandler)                          // 管理者が注文ステータスを更新
+		adminGroup.PATCH("/products/:product_id/availability", adc.UpdateProductAvailabilityHandler) // 商品の在庫状態更新
+	}
 	return e
 
 }

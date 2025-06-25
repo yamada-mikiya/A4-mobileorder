@@ -9,7 +9,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewDB() *sql.DB {
+func NewDB()(*sql.DB, func()) {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: Could not load .env file")
 	}
@@ -31,5 +31,11 @@ func NewDB() *sql.DB {
 	}
 
 	fmt.Println("Successfully connected to the database!")
-	return db
+
+	closer := func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Error closing the database: %v\n", err)
+		}
+	}
+	return db, closer
 }

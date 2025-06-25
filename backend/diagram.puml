@@ -22,6 +22,7 @@ entity "orders" as orders {
   shop_id <<FK>>
   order_date
   total_amount
+  guest_order_token
   status
   created_at
   updated_at
@@ -71,10 +72,11 @@ entity "shops" as shops {
 }
 
 users ||--o{ shops
-users ||--|{ orders
+users |o--o{ orders
 orders ||--|{ order_product
-products ||--|{ order_product
-products ||--|{ shop_product
-shops ||--|{ shop_product
-shops ||--|{ orders
+products ||--o{ order_product
+products ||--o{ shop_product
+shops ||--o{ shop_product
+shops ||--o{ orders
+
 @enduml

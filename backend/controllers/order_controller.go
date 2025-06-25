@@ -7,33 +7,33 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type IOrderController interface {
+type OrderController interface {
 	GetProductListHandler(ctx echo.Context) error
 	CreateOrderHandler(ctx echo.Context) error
 	GetOrderDetailHandler(ctx echo.Context) error
 	GetOrderStatusHandler(ctx echo.Context) error
 }
 
-type OrderController struct {
-	service services.IOrderServicer
+type orderController struct {
+	service services.OrderServicer
 }
 
-func NewOrderController(s services.IOrderServicer) IOrderController {
-	return &OrderController{service: s}
+func NewOrderController(s services.OrderServicer) OrderController {
+	return &orderController{service: s}
 }
 
-func (c *OrderController) GetProductListHandler(ctx echo.Context) error {
+func (c *orderController) GetProductListHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Get prooduct list")
 }
 
-func (c *OrderController) CreateOrderHandler(ctx echo.Context) error {
+func (c *orderController) CreateOrderHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Create order")
 }
 
-func (c *OrderController) GetOrderDetailHandler(ctx echo.Context) error {
+func (c *orderController) GetOrderDetailHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Get order detail")
 }
 
-func (c *OrderController) GetOrderStatusHandler(ctx echo.Context) error {
+func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Get order status")
 }

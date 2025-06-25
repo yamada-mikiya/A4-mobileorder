@@ -8,20 +8,20 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type IAuthController interface {
+type AuthController interface {
 	SignUpHandler(ctx echo.Context) error
 	LogInHandler(ctx echo.Context) error
 }
 
-type AuthController struct {
-	service services.IAuthServicer
+type authController struct {
+	service services.AuthServicer
 }
 
-func NewAuthController(s services.IAuthServicer) IAuthController {
-	return &AuthController{service: s}
+func NewAuthController(s services.AuthServicer) AuthController {
+	return &authController{service: s}
 }
 
-func (c *AuthController) SignUpHandler(ctx echo.Context) error {
+func (c *authController) SignUpHandler(ctx echo.Context) error {
 	user := models.User{}
 	if err := ctx.Bind(&user); err != nil {
 		return ctx.JSON(http.StatusBadRequest, err.Error())
@@ -36,7 +36,7 @@ func (c *AuthController) SignUpHandler(ctx echo.Context) error {
 	})
 }
 
-func (c *AuthController) LogInHandler(ctx echo.Context) error {
+func (c *authController) LogInHandler(ctx echo.Context) error {
 	user := models.User{}
 	if err := ctx.Bind(&user); err != nil {
 		return ctx.JSON(http.StatusBadRequest, err.Error())
