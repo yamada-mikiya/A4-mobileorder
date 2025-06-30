@@ -31,13 +31,13 @@ func (s *orderService) GetProductListService(shopID int) error {
 	return nil
 }
 
-func generateUserToken() string {
+func generateUserToken() (string, error) {
 	token, err := uuid.NewRandom()
 	if err != nil {
-		log.Fatalf("FATAL: Failed to generate UUID for guest token: %v", err)
+		return "", fmt.Errorf("failed to generate UUID for guest token: %v", err)
 	}
 
-	return token.String()
+	return token.String(), nil
 }
 
 func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []models.OrderProductRequest) (*models.Order, error) {
