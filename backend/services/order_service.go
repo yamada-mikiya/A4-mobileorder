@@ -15,7 +15,7 @@ import (
 type OrderServicer interface {
 	GetProductListService(shopID int) error
 	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderProductRequest) (*models.Order, error)
-	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, Products []models.OrderProductRequest) (*models.Order, error)
+	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error)
 }
 
 type orderService struct {
