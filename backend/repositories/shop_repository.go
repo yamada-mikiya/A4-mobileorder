@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/A4-dev-team/mobileorder.git/models"
+	"github.com/jmoiron/sqlx"
 )
 
 type ShopRepository interface {
@@ -12,10 +13,10 @@ type ShopRepository interface {
 }
 
 type shopRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewShopRepository(db *sql.DB) ShopRepository {
+func NewShopRepository(db *sqlx.DB) ShopRepository {
 	return &shopRepository{db: db}
 }
 
@@ -23,7 +24,7 @@ func (r *shopRepository) GetShopByAdminID(adminID int) (models.Shop, error) {
 	shop := models.Shop{}
 
 	row := r.db.QueryRow(
-		`SELECT　shop_id, name, description, location, is_open, admin_user_id
+		`SELECT shop_id, name, description, location, is_open, admin_user_id
          FROM shops
          WHERE admin_user_id = $1`,
 		adminID,
