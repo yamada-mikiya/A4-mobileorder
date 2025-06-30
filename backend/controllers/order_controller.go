@@ -28,7 +28,7 @@ func NewOrderController(s services.OrderServicer) OrderController {
 
 // 商品一覧を取得
 func (c *orderController) GetProductListHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Get prooduct list")
+	return ctx.String(http.StatusOK, "Get product list")
 }
 
 // 新しい注文を作成
