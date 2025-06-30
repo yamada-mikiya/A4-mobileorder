@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
@@ -47,7 +46,10 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []m
 		return nil, fmt.Errorf("fail to calculate total amount: %v", err)
 	}
 
-	userToken := generateUserToken()
+	userToken, err:= generateUserToken()
+	if err != nil {
+		return nil, err
+	}
 
 	order := &models.Order{
 		ShopID:         shopID,
