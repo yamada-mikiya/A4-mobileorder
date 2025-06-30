@@ -55,7 +55,7 @@ func (c *orderController) CreateOrderHandler(ctx echo.Context) error {
 
 		createdOrder, err := c.service.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
 		if err != nil {
-			log.Printf("Error creating authenticatd order: %v", err)
+			log.Printf("Error creating authenticated order: %v", err)
 			return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
 		}
 		return ctx.JSON(http.StatusCreated, map[string]interface{}{"order_id": createdOrder.OrderID})

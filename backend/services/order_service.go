@@ -44,7 +44,7 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []m
 
 	totalAmount, orderProductsToCreate, err := s.validateAndPrepareOrderProducts(ctx, shopID, products)
 	if err != nil {
-		return nil, fmt.Errorf("fail to caluculate total amount: %v", err)
+		return nil, fmt.Errorf("fail to calculate total amount: %v", err)
 	}
 
 	userToken := generateUserToken()
