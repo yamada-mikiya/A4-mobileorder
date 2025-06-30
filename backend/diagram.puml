@@ -22,7 +22,7 @@ entity "orders" as orders {
   shop_id <<FK>>
   order_date
   total_amount
-  guest_order_token
+  user_order_token
   status
   created_at
   updated_at
@@ -35,8 +35,8 @@ entity "order_product" as order_product {
   product_id<<FK>>
   quantity
   price_at_order
-  updated_at
   created_at
+  updated_at
 }
 
 entity "products" as products {
@@ -63,7 +63,7 @@ entity "shops" as shops {
   shop_id
   --
   admin_user_id<<FK>>
-  shop_name
+  name
   description
   location
   is_open

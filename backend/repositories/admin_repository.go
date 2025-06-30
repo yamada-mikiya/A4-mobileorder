@@ -1,20 +1,20 @@
 package repositories
 
-import "database/sql"
+import "github.com/jmoiron/sqlx"
 
 type AdminRepository interface {
 	UpdateOrderStatus(orderID int, status string) error
 }
 
 type adminRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewAdminRepository (db *sql.DB) AdminRepository {
+func NewAdminRepository(db *sqlx.DB) AdminRepository {
 	return &adminRepository{db}
 }
 
-func (r *adminRepository) UpdateOrderStatus (orderID int, status string) error {
+func (r *adminRepository) UpdateOrderStatus(orderID int, status string) error {
 	//TODO
 	return nil
 }

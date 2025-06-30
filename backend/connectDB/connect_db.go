@@ -1,15 +1,15 @@
 package connectDB
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 )
 
-func NewDB()(*sql.DB, func()) {
+func NewDB() (*sqlx.DB, func()) {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: Could not load .env file")
 	}
@@ -20,14 +20,9 @@ func NewDB()(*sql.DB, func()) {
 		log.Fatal("Error: DATABASE_URL environment variable is not set")
 	}
 
-	db, err := sql.Open("postgres", dbConn)
+	db, err := sqlx.Connect("postgres", dbConn)
 	if err != nil {
 		log.Fatalf("Error: Could not open database connection: %v", err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		log.Fatalf("Error: Could not ping database: %v", err)
 	}
 
 	fmt.Println("Successfully connected to the database!")
