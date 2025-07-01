@@ -13,7 +13,8 @@ import (
 
 type OrderController interface {
 	GetProductListHandler(ctx echo.Context) error
-	CreateOrderHandler(ctx echo.Context) error
+	CreateAuthenticatedOrderHandler(ctx echo.Context) error
+	CreateGuestOrderHandler(ctx echo.Context) error
 	GetOrderListHandler(ctx echo.Context) error
 	GetOrderStatusHandler(ctx echo.Context) error
 }
@@ -32,51 +33,87 @@ func (c *orderController) GetProductListHandler(ctx echo.Context) error {
 }
 
 // 新しい注文を作成
-func (c *orderController) CreateOrderHandler(ctx echo.Context) error {
-	// これで reqOrder.Products[0].ProductID のようにデータにアクセスできる
+// CreateAuthenticatedOrderHandler は認証済みユーザーの注文を作成します。
+// @Summary 認証ユーザー向け注文作成 (Create Order for Authenticated User)
+// @Description 認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。
+// @Tags Order
+// @Accept json
+// @Produce json
+// @Param shop_id path int true "店舗ID (Shop ID)"
+// @Param body body models.CreateOrderRequest true "注文する商品の情報 (Product ID and quantity)"
+// @Security BearerAuth
+// @Success 201 {object} models.AuthenticatedOrderResponse "注文成功時のレスポンス"
+// @Failure 400 {object} map[string]string "リクエストが不正な場合のエラー"
+// @Failure 401 {object} map[string]string "認証に失敗した場合のエラー"
+// @Failure 500 {object} map[string]string "サーバー内部エラー"
+// @Router /shops/{shop_id}/orders [post]
+func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) error {
 	reqProd := models.CreateOrderRequest{}
 	if err := ctx.Bind(&reqProd); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
 	shopIDStr := ctx.Param("shop_id")
-
 	shopID, err := strconv.Atoi(shopIDStr)
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
 	}
 
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	//jwt有効なときとjwtが有効でないときで処理を変える
-	if ok && userToken != nil {
-		log.Printf("Authenticated user order flow")
-		claims := userToken.Claims.(*models.JwtCustomClaims)
-		userID := claims.UserID
+	// jwtMiddlewareによってセットされたユーザー情報を取得
+	userToken := ctx.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*models.JwtCustomClaims)
+	userID := claims.UserID
 
-		createdOrder, err := c.service.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
-		if err != nil {
-			log.Printf("Error creating authenticated order: %v", err)
-			return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
-		}
-		return ctx.JSON(http.StatusCreated, map[string]interface{}{"order_id": createdOrder.OrderID})
-	} else {
-		log.Println("Guest user order flow")
-		createdOrder, err := c.service.CreateOrder(ctx.Request().Context(), shopID, reqProd.Products)
-		if err != nil {
-			log.Printf("Error creating guest order: %v", err)
-			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "fail to create order"})
-		}
+	log.Printf("Authenticated user (ID: %d) order flow", userID)
 
-		resOrder := models.CreateOrderResponse{
-			OrderID:        createdOrder.OrderID,
-			UserOrderToken: createdOrder.UserOrderToken.String,
-			Message:        "Order created successfully as a guest. Please sign up to claim this order.",
-		}
-
-		return ctx.JSON(http.StatusCreated, resOrder)
-
+	createdOrder, err := c.service.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
+	if err != nil {
+		log.Printf("Error creating authenticated order: %v", err)
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
 	}
 
+	return ctx.JSON(http.StatusCreated, map[string]interface{}{"order_id": createdOrder.OrderID})
+}
+
+// CreateGuestOrderHandler はゲストユーザーの注文を作成します。
+// @Summary ゲスト向け注文作成 (Create Order for Guest)
+// @Description ゲストユーザー（未ログイン）が新しい注文を作成します。認証は不要です。
+// @Tags Order
+// @Accept json
+// @Produce json
+// @Param shop_id path int true "店舗ID (Shop ID)"
+// @Param body body models.CreateOrderRequest true "注文する商品の情報 (Product ID and quantity)"
+// @Success 201 {object} models.CreateOrderResponse "注文成功時のレスポンス"
+// @Failure 400 {object} map[string]string "リクエストが不正な場合のエラー"
+// @Failure 500 {object} map[string]string "サーバー内部エラー"
+// @Router /shops/{shop_id}/guest-orders [post]
+func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
+	reqProd := models.CreateOrderRequest{}
+	if err := ctx.Bind(&reqProd); err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	shopIDStr := ctx.Param("shop_id")
+	shopID, err := strconv.Atoi(shopIDStr)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
+	}
+
+	log.Println("Guest user order flow")
+
+	createdOrder, err := c.service.CreateOrder(ctx.Request().Context(), shopID, reqProd.Products)
+	if err != nil {
+		log.Printf("Error creating guest order: %v", err)
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "fail to create order"})
+	}
+
+	resOrder := models.CreateOrderResponse{
+		OrderID:        createdOrder.OrderID,
+		UserOrderToken: createdOrder.UserOrderToken.String,
+		Message:        "Order created successfully as a guest. Please sign up to claim this order.",
+	}
+
+	return ctx.JSON(http.StatusCreated, resOrder)
 }
 
 // ユーザーの注文詳細を取得
@@ -90,7 +127,7 @@ func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
-	orderList, err := c.service.GetOrderList(ctx.Request().Context(), userID, statusParams)
+	orderList, err := c.service.GetUserOrders(ctx.Request().Context(), userID, statusParams)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order list"})
 	}

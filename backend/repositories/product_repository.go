@@ -28,7 +28,7 @@ func (r *productRepository) GetProductList(shopID int) error {
 }
 
 func (r *productRepository) ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error) {
-
+	//商品IDで商品情報取得
 	productMap := make(map[int]models.Product)
 
 	if len(productIDs) == 0 {

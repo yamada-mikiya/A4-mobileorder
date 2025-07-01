@@ -1,3 +1,5 @@
+// /api/router.go
+
 package api
 
 import (
@@ -28,16 +30,19 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 	e.GET("/health", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
-	//認証無し
+
+	// --- 認証不要なエンドポイント ---
 	e.POST("/auth/signup", auc.SignUpHandler)
 	e.POST("/auth/login", auc.LogInHandler)
-	e.GET("/shops/:shop_id/products", orc.GetProductListHandler) // 商品一覧ページで商品情報取得
-	e.POST("/shops/:shop_id/orders", orc.CreateOrderHandler, middlewares.OptionalAuth)                    // 注文作成
+	e.GET("/shops/:shop_id/products", orc.GetProductListHandler)
+	e.POST("/shops/:shop_id/guest-orders", orc.CreateGuestOrderHandler)
 
-	//認証あり
-	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)        // ユーザーの注文確認（注文番号など）
-	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware) // 注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
+	// --- 認証が必要なエンドポイント ---
+	e.POST("/shops/:shop_id/orders", orc.CreateAuthenticatedOrderHandler, jwtMiddleware)
+	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)
+	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware)
 
+	// --- 管理者用エンドポイント（変更なし） ---
 	adminGroup := e.Group("/admin")
 	adminGroup.Use(jwtMiddleware, middlewares.AdminRequired)
 	{
@@ -46,5 +51,4 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 		adminGroup.PATCH("/products/:product_id/availability", adc.UpdateProductAvailabilityHandler) // 商品の在庫状態更新
 	}
 	return e
-
 }

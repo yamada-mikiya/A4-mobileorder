@@ -15,7 +15,7 @@ type OrderServicer interface {
 	GetProductListService(shopID int) error
 	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderProductRequest) (*models.Order, error)
 	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error)
-	GetOrderList(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error)
+	GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error)
 	GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error)
 }
 
@@ -121,7 +121,7 @@ func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shop
 	return totalAmount, orderProductsToCreate, nil
 }
 
-func (s *orderService) GetOrderList(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
+func (s *orderService) GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
 	
 	return []models.OrderListResponse{}, nil
 }

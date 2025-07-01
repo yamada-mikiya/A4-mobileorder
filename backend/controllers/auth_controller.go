@@ -22,7 +22,9 @@ func NewAuthController(s services.AuthServicer) AuthController {
 	return &authController{service: s}
 }
 //@Summary signup handler
-//@Description Get token from header
+//@Tags Auth
+//@Description Get token and user info from header
+//@Param body body models.AuthenticateRequest true "use e-mail and token"
 //@Accept json
 //@Produce json
 //@success 201 {object} models.SignUpResponse
@@ -45,7 +47,15 @@ func (c *authController) SignUpHandler(ctx echo.Context) error {
 		"token": tokenString,
 	})
 }
-
+//@Summary login handler
+//@Tags Auth
+//@Description Get token from header and Userid
+//@Param body body models.AuthenticateRequest true "use e-mail and token"
+//@Accept json
+//@Produce json
+//@success 201 {object} models.LoginResponse
+//@Security BearerAuth
+//@Router /auth/login [post]
 func (c *authController) LogInHandler(ctx echo.Context) error {
 	req := models.AuthenticateRequest{}
 	if err := ctx.Bind(&req); err != nil {
