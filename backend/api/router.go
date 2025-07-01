@@ -11,11 +11,21 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/echo/v4"
 )
 
 func NewRouter(adc controllers.AdminController, auc controllers.AuthController, orc controllers.OrderController) *echo.Echo {
 	e := echo.New()
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		// 開発中はどのオリジンからでもアクセスを許可するためにAllowOriginFuncを使うと便利
+		AllowOriginFunc: func(origin string) (bool, error) {
+			return true, nil
+		},
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	}))
 
 	jwtConfig := echojwt.Config{
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
@@ -34,15 +44,15 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 	// --- 認証不要なエンドポイント ---
 	e.POST("/auth/signup", auc.SignUpHandler)
 	e.POST("/auth/login", auc.LogInHandler)
-	e.GET("/shops/:shop_id/products", orc.GetProductListHandler)
-	e.POST("/shops/:shop_id/guest-orders", orc.CreateGuestOrderHandler)
+	e.GET("/shops/:shop_id/products", orc.GetProductListHandler) //商品一覧ページ
+	e.POST("/shops/:shop_id/guest-orders", orc.CreateGuestOrderHandler) //ゲスト用注文作成
 
 	// --- 認証が必要なエンドポイント ---
-	e.POST("/shops/:shop_id/orders", orc.CreateAuthenticatedOrderHandler, jwtMiddleware)
-	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)
-	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware)
+	e.POST("/shops/:shop_id/orders", orc.CreateAuthenticatedOrderHandler, jwtMiddleware) //認証ユーザー用注文作成
+	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware) //ユーザーの注文確認
+	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware) //注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
 
-	// --- 管理者用エンドポイント（変更なし） ---
+	// --- 管理者用エンドポイント　---
 	adminGroup := e.Group("/admin")
 	adminGroup.Use(jwtMiddleware, middlewares.AdminRequired)
 	{

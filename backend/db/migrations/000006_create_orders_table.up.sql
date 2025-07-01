@@ -4,7 +4,7 @@ CREATE TABLE orders (
     shop_id INT NOT NULL,
     order_date TIMESTAMP NOT NULL,
     total_amount DECIMAL(10, 2) NOT NULL,
-    user_order_token VARCHAR(255) UNIQUE NULL,
+    guest_order_token VARCHAR(255) UNIQUE NULL,
     status VARCHAR(50),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),

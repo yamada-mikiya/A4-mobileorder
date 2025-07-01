@@ -21,15 +21,17 @@ type authController struct {
 func NewAuthController(s services.AuthServicer) AuthController {
 	return &authController{service: s}
 }
-//@Summary signup handler
-//@Tags Auth
-//@Description Get token and user info from header
-//@Param body body models.AuthenticateRequest true "use e-mail and token"
-//@Accept json
-//@Produce json
-//@success 201 {object} models.SignUpResponse
-//@Security BearerAuth
-//@Router /auth/signup [post]
+// @Summary 新規ユーザー登録 (SignUp)
+// @Tags Auth
+// @Description 新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
+// @Param body body models.AuthenticateRequest true "ユーザーのメールアドレスと、任意でゲスト注文トークン"
+// @Accept json
+// @Produce json
+// @Success 201 {object} models.SignUpResponse "登録成功時のレスポンス"
+// @Failure 400 {object} map[string]string "リクエストが不正な場合"
+// @Failure 409 {object} map[string]string "メールアドレスが既に使用されている場合"
+// @Failure 500 {object} map[string]string "サーバー内部エラー"
+// @Router /auth/signup [post]
 func (c *authController) SignUpHandler(ctx echo.Context) error {
 	req := models.AuthenticateRequest{}
 	if err := ctx.Bind(&req); err != nil {
@@ -47,15 +49,17 @@ func (c *authController) SignUpHandler(ctx echo.Context) error {
 		"token": tokenString,
 	})
 }
-//@Summary login handler
-//@Tags Auth
-//@Description Get token from header and Userid
-//@Param body body models.AuthenticateRequest true "use e-mail and token"
-//@Accept json
-//@Produce json
-//@success 201 {object} models.LoginResponse
-//@Security BearerAuth
-//@Router /auth/login [post]
+// @Summary ユーザー認証 (LogIn)
+// @Tags Auth
+// @Description 既存のユーザーを認証し、新しい認証トークンを発行します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
+// @Param body body models.AuthenticateRequest true "ユーザーのメールアドレスと、任意でゲスト注文トークン"
+// @Accept json
+// @Produce json
+// @Success 200 {object} models.LoginResponse "認証成功時のレスポンス"
+// @Failure 400 {object} map[string]string "リクエストが不正な場合"
+// @Failure 401 {object} map[string]string "認証に失敗した場合"
+// @Failure 500 {object} map[string]string "サーバー内部エラー"
+// @Router /auth/login [post]
 func (c *authController) LogInHandler(ctx echo.Context) error {
 	req := models.AuthenticateRequest{}
 	if err := ctx.Bind(&req); err != nil {

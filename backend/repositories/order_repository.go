@@ -41,7 +41,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 
 	//orderにinsert
 	orderQuery := `
-			INSERT INTO orders (user_id, shop_id, order_date, total_amount, user_order_token, status)
+			INSERT INTO orders (user_id, shop_id, order_date, total_amount, guest_order_token, status)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			RETURNING order_id, created_at, updated_at
 	`
@@ -52,7 +52,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 		order.ShopID,
 		time.Now(),
 		order.TotalAmount,
-		order.UserOrderToken,
+		order.GuestOrderToken,
 		order.Status,
 	).Scan(&order.OrderID, &order.CreatedAt, &order.UpdatedAt)
 
@@ -77,7 +77,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 }
 
 func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error {
-	query := "UPDATE orders SET user_id = $1 WHERE user_order_token = $2"
+	query := "UPDATE orders SET user_id = $1 WHERE guest_order_token = $2"
 	result, err := r.db.ExecContext(ctx, query, userID, guestToken)
 	if err != nil {
 		return err

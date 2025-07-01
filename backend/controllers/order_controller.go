@@ -32,7 +32,6 @@ func (c *orderController) GetProductListHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Get product list")
 }
 
-// 新しい注文を作成
 // CreateAuthenticatedOrderHandler は認証済みユーザーの注文を作成します。
 // @Summary 認証ユーザー向け注文作成 (Create Order for Authenticated User)
 // @Description 認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。
@@ -72,7 +71,11 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
 	}
 
-	return ctx.JSON(http.StatusCreated, map[string]interface{}{"order_id": createdOrder.OrderID})
+	resOrder := models.AuthenticatedOrderResponse{
+		OrderID: uint(createdOrder.OrderID),
+	}
+
+	return ctx.JSON(http.StatusCreated, resOrder)
 }
 
 // CreateGuestOrderHandler はゲストユーザーの注文を作成します。
@@ -108,9 +111,9 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 	}
 
 	resOrder := models.CreateOrderResponse{
-		OrderID:        createdOrder.OrderID,
-		UserOrderToken: createdOrder.UserOrderToken.String,
-		Message:        "Order created successfully as a guest. Please sign up to claim this order.",
+		OrderID:         createdOrder.OrderID,
+		GuestOrderToken: createdOrder.GuestOrderToken.String,
+		Message:         "Order created successfully as a guest. Please sign up to claim this order.",
 	}
 
 	return ctx.JSON(http.StatusCreated, resOrder)

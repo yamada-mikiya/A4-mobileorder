@@ -17,12 +17,7 @@ const docTemplate = `{
     "paths": {
         "/auth/login": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get token from header and Userid",
+                "description": "既存のユーザーを認証し、新しい認証トークンを発行します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。",
                 "consumes": [
                     "application/json"
                 ],
@@ -32,10 +27,10 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "login handler",
+                "summary": "ユーザー認証 (LogIn)",
                 "parameters": [
                     {
-                        "description": "use e-mail and token",
+                        "description": "ユーザーのメールアドレスと、任意でゲスト注文トークン",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -45,10 +40,37 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "認証成功時のレスポンス",
                         "schema": {
                             "$ref": "#/definitions/models.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "リクエストが不正な場合",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗した場合",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部エラー",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -56,12 +78,7 @@ const docTemplate = `{
         },
         "/auth/signup": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get token and user info from header",
+                "description": "新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。",
                 "consumes": [
                     "application/json"
                 ],
@@ -71,10 +88,10 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "signup handler",
+                "summary": "新規ユーザー登録 (SignUp)",
                 "parameters": [
                     {
-                        "description": "use e-mail and token",
+                        "description": "ユーザーのメールアドレスと、任意でゲスト注文トークン",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -85,22 +102,44 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "登録成功時のレスポンス",
                         "schema": {
                             "$ref": "#/definitions/models.SignUpResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "リクエストが不正な場合",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "メールアドレスが既に使用されている場合",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部エラー",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
             }
         },
-        "/shops/:shop_id/orders": {
+        "/shops/{shop_id}/guest-orders": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create Order",
+                "description": "ゲストユーザー（未ログイン）が新しい注文を作成します。認証は不要です。",
                 "consumes": [
                     "application/json"
                 ],
@@ -110,10 +149,17 @@ const docTemplate = `{
                 "tags": [
                     "Order"
                 ],
-                "summary": "Createorder handler",
+                "summary": "ゲスト向け注文作成 (Create Order for Guest)",
                 "parameters": [
                     {
-                        "description": "product id and quantity",
+                        "type": "integer",
+                        "description": "店舗ID (Shop ID)",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "注文する商品の情報 (Product ID and quantity)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -124,9 +170,55 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "注文成功時のレスポンス\" swaggertype:\"object",
                         "schema": {
                             "$ref": "#/definitions/models.CreateOrderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/shops/{shop_id}/orders": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "認証ユーザー向け注文作成 (Create Order for Authenticated User)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "店舗ID (Shop ID)",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "注文する商品の情報 (Product ID and quantity)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "注文成功時のレスポンス",
+                        "schema": {
+                            "$ref": "#/definitions/models.AuthenticatedOrderResponse"
                         }
                     }
                 }
@@ -141,9 +233,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "new.user@example.com"
                 },
-                "user_order_token": {
+                "guest_order_token": {
                     "type": "string",
                     "example": "15ff4999-2cfd-41f3-b744-926e7c5c7a0e"
+                }
+            }
+        },
+        "models.AuthenticatedOrderResponse": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -161,6 +261,10 @@ const docTemplate = `{
         "models.CreateOrderResponse": {
             "type": "object",
             "properties": {
+                "guest_order_token": {
+                    "type": "string",
+                    "example": "15ff4999-2cfd-41f3-b744-926e7c5c7a0"
+                },
                 "message": {
                     "type": "string",
                     "example": "Order created successfully as a guest. Please sign up to claim this order."
@@ -168,10 +272,6 @@ const docTemplate = `{
                 "order_id": {
                     "type": "integer",
                     "example": 6
-                },
-                "user_order_token": {
-                    "type": "string",
-                    "example": "15ff4999-2cfd-41f3-b744-926e7c5c7a0"
                 }
             }
         },

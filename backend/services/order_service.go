@@ -33,7 +33,7 @@ func (s *orderService) GetProductListService(shopID int) error {
 	return nil
 }
 
-func generateUserToken() (string, error) {
+func generateguestToken() (string, error) {
 	token, err := uuid.NewRandom()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate UUID for guest token: %v", err)
@@ -49,16 +49,16 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []m
 		return nil, fmt.Errorf("fail to calculate total amount: %v", err)
 	}
 
-	userToken, err:= generateUserToken()
+	guestToken, err := generateguestToken()
 	if err != nil {
 		return nil, err
 	}
 
 	order := &models.Order{
-		ShopID:         shopID,
-		TotalAmount:    totalAmount,
-		Status:         models.Cooking,
-		UserOrderToken: sql.NullString{String: userToken, Valid: true},
+		ShopID:          shopID,
+		TotalAmount:     totalAmount,
+		Status:          models.Cooking,
+		GuestOrderToken: sql.NullString{String: guestToken, Valid: true},
 	}
 
 	if err := s.orr.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
@@ -122,7 +122,7 @@ func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shop
 }
 
 func (s *orderService) GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
-	
+
 	return []models.OrderListResponse{}, nil
 }
 

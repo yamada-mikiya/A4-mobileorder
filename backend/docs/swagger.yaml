@@ -5,9 +5,14 @@ definitions:
       email:
         example: new.user@example.com
         type: string
-      user_order_token:
+      guest_order_token:
         example: 15ff4999-2cfd-41f3-b744-926e7c5c7a0e
         type: string
+    type: object
+  models.AuthenticatedOrderResponse:
+    properties:
+      order_id:
+        type: integer
     type: object
   models.CreateOrderRequest:
     properties:
@@ -18,6 +23,9 @@ definitions:
     type: object
   models.CreateOrderResponse:
     properties:
+      guest_order_token:
+        example: 15ff4999-2cfd-41f3-b744-926e7c5c7a0
+        type: string
       message:
         example: Order created successfully as a guest. Please sign up to claim this
           order.
@@ -25,9 +33,6 @@ definitions:
       order_id:
         example: 6
         type: integer
-      user_order_token:
-        example: 15ff4999-2cfd-41f3-b744-926e7c5c7a0
-        type: string
     type: object
   models.LoginResponse:
     properties:
@@ -74,9 +79,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Get token from header and Userid
+      description: 既存のユーザーを認証し、新しい認証トークンを発行します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
       parameters:
-      - description: use e-mail and token
+      - description: ユーザーのメールアドレスと、任意でゲスト注文トークン
         in: body
         name: body
         required: true
@@ -85,22 +90,38 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: 認証成功時のレスポンス
           schema:
             $ref: '#/definitions/models.LoginResponse'
-      security:
-      - BearerAuth: []
-      summary: login handler
+        "400":
+          description: リクエストが不正な場合
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗した場合
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部エラー
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ユーザー認証 (LogIn)
       tags:
       - Auth
   /auth/signup:
     post:
       consumes:
       - application/json
-      description: Get token and user info from header
+      description: 新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
       parameters:
-      - description: use e-mail and token
+      - description: ユーザーのメールアドレスと、任意でゲスト注文トークン
         in: body
         name: body
         required: true
@@ -110,21 +131,42 @@ paths:
       - application/json
       responses:
         "201":
-          description: Created
+          description: 登録成功時のレスポンス
           schema:
             $ref: '#/definitions/models.SignUpResponse'
-      security:
-      - BearerAuth: []
-      summary: signup handler
+        "400":
+          description: リクエストが不正な場合
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: メールアドレスが既に使用されている場合
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部エラー
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 新規ユーザー登録 (SignUp)
       tags:
       - Auth
-  /shops/:shop_id/orders:
+  /shops/{shop_id}/guest-orders:
     post:
       consumes:
       - application/json
-      description: Create Order
+      description: ゲストユーザー（未ログイン）が新しい注文を作成します。認証は不要です。
       parameters:
-      - description: product id and quantity
+      - description: 店舗ID (Shop ID)
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: 注文する商品の情報 (Product ID and quantity)
         in: body
         name: body
         required: true
@@ -134,12 +176,39 @@ paths:
       - application/json
       responses:
         "201":
-          description: Created
+          description: 注文成功時のレスポンス" swaggertype:"object
           schema:
             $ref: '#/definitions/models.CreateOrderResponse'
+      summary: ゲスト向け注文作成 (Create Order for Guest)
+      tags:
+      - Order
+  /shops/{shop_id}/orders:
+    post:
+      consumes:
+      - application/json
+      description: 認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。
+      parameters:
+      - description: 店舗ID (Shop ID)
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      - description: 注文する商品の情報 (Product ID and quantity)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 注文成功時のレスポンス
+          schema:
+            $ref: '#/definitions/models.AuthenticatedOrderResponse'
       security:
       - BearerAuth: []
-      summary: Createorder handler
+      summary: 認証ユーザー向け注文作成 (Create Order for Authenticated User)
       tags:
       - Order
 securityDefinitions:

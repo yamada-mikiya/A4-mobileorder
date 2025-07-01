@@ -22,7 +22,7 @@ entity "orders" as orders {
   shop_id <<FK>>
   order_date
   total_amount
-  user_order_token
+  guest_order_token
   status
   created_at
   updated_at

@@ -127,15 +127,15 @@ type Shop struct {
 }
 
 type Order struct {
-	OrderID        int            `db:"order_id"`
-	UserID         sql.NullInt64  `db:"user_id"` // ゲスト注文ではNULLになる
-	ShopID         int            `db:"shop_id"`
-	OrderDate      time.Time      `db:"order_date"`
-	TotalAmount    float64        `db:"total_amount"`
-	UserOrderToken sql.NullString `db:"user_order_token"` // ゲスト注文では一時的なトークンが入る
-	Status         OrderStatus    `db:"status"`
-	CreatedAt      time.Time      `db:"created_at"`
-	UpdatedAt      time.Time      `db:"updated_at"`
+	OrderID         int            `db:"order_id"`
+	UserID          sql.NullInt64  `db:"user_id"` // ゲスト注文ではNULLになる
+	ShopID          int            `db:"shop_id"`
+	OrderDate       time.Time      `db:"order_date"`
+	TotalAmount     float64        `db:"total_amount"`
+	GuestOrderToken sql.NullString `db:"guest_order_token"` // ゲスト注文では一時的なトークンが入る
+	Status          OrderStatus    `db:"status"`
+	CreatedAt       time.Time      `db:"created_at"`
+	UpdatedAt       time.Time      `db:"updated_at"`
 }
 
 type Product struct {
@@ -157,4 +157,3 @@ type OrderProduct struct {
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 }
-

@@ -41,8 +41,8 @@ func (s *authService) SignUp(ctx context.Context, req models.AuthenticateRequest
 		return models.UserResponse{}, "", err
 	}
 
-	if req.UserOrderToken != "" {
-		if err := s.orr.UpdateUserIDByGuestToken(ctx, req.UserOrderToken, newUser.UserID); err != nil {
+	if req.GuestOrderToken != "" {
+		if err := s.orr.UpdateUserIDByGuestToken(ctx, req.GuestOrderToken, newUser.UserID); err != nil {
 			log.Printf("warning: failed to claim guest order for new user %d: %v", newUser.UserID, err)
 		}
 	}
@@ -71,8 +71,8 @@ func (s *authService) LogIn(ctx context.Context, req models.AuthenticateRequest)
 		return "", err
 	}
 
-	if req.UserOrderToken != "" {
-		if err := s.orr.UpdateUserIDByGuestToken(ctx, req.UserOrderToken, storedUser.UserID); err != nil {
+	if req.GuestOrderToken != "" {
+		if err := s.orr.UpdateUserIDByGuestToken(ctx, req.GuestOrderToken, storedUser.UserID); err != nil {
 			log.Printf("warning: failed to claim guest order for existing user %d: %v", storedUser.UserID, err)
 		}
 	}
