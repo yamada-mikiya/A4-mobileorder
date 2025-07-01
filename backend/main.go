@@ -18,9 +18,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
-//	@title			modile_order
+//	@title			mobile_order
 //	@version		1.0
-//	@description	This is modileorder API
+//	@description	This is mobileorder API
 //	@host			localhost:8080
 //	@BashPath		/
 // @securityDefinitions.apikey BearerAuth
