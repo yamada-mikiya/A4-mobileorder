@@ -22,7 +22,7 @@ import (
 //	@version		1.0
 //	@description	This is mobileorder API
 //	@host			localhost:8080
-//	@BashPath		/
+//	@BasePath		/
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
