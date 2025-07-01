@@ -32,6 +32,15 @@ func (c *orderController) GetProductListHandler(ctx echo.Context) error {
 }
 
 // 新しい注文を作成
+//@Summary Createorder handler 
+//@Tags Order
+//@Description Create Order 
+//@Param body body models.CreateOrderRequest true "product id and quantity"
+//@Accept json
+//@Produce json
+//@success 201 {object} models.CreateOrderResponse
+//@Security BearerAuth
+//@Router /shops/:shop_id/orders [post]
 func (c *orderController) CreateOrderHandler(ctx echo.Context) error {
 	// これで reqOrder.Products[0].ProductID のようにデータにアクセスできる
 	reqProd := models.CreateOrderRequest{}

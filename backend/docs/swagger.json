@@ -1,13 +1,53 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is modileorder API",
-        "title": "modile_oreder",
+        "description": "This is mobileorder API",
+        "title": "mobile_order",
         "contact": {},
         "version": "1.0"
     },
     "host": "localhost:8080",
+    "basePath": "/",
     "paths": {
+        "/auth/login": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get token from header and Userid",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "login handler",
+                "parameters": [
+                    {
+                        "description": "use e-mail and token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.AuthenticateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.LoginResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/signup": {
             "post": {
                 "security": [
@@ -15,14 +55,28 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get token from header",
+                "description": "Get token and user info from header",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
+                "tags": [
+                    "Auth"
+                ],
                 "summary": "signup handler",
+                "parameters": [
+                    {
+                        "description": "use e-mail and token",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.AuthenticateRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Created",
@@ -32,9 +86,111 @@
                     }
                 }
             }
+        },
+        "/shops/:shop_id/orders": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create Order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "Createorder handler",
+                "parameters": [
+                    {
+                        "description": "product id and quantity",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateOrderResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "models.AuthenticateRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "new.user@example.com"
+                },
+                "user_order_token": {
+                    "type": "string",
+                    "example": "15ff4999-2cfd-41f3-b744-926e7c5c7a0e"
+                }
+            }
+        },
+        "models.CreateOrderRequest": {
+            "type": "object",
+            "properties": {
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OrderProductRequest"
+                    }
+                }
+            }
+        },
+        "models.CreateOrderResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Order created successfully as a guest. Please sign up to claim this order."
+                },
+                "order_id": {
+                    "type": "integer",
+                    "example": 6
+                },
+                "user_order_token": {
+                    "type": "string",
+                    "example": "15ff4999-2cfd-41f3-b744-926e7c5c7a0"
+                }
+            }
+        },
+        "models.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"
+                }
+            }
+        },
+        "models.OrderProductRequest": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "quantity": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
         "models.SignUpResponse": {
             "type": "object",
             "properties": {

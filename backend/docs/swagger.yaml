@@ -1,4 +1,49 @@
+basePath: /
 definitions:
+  models.AuthenticateRequest:
+    properties:
+      email:
+        example: new.user@example.com
+        type: string
+      user_order_token:
+        example: 15ff4999-2cfd-41f3-b744-926e7c5c7a0e
+        type: string
+    type: object
+  models.CreateOrderRequest:
+    properties:
+      products:
+        items:
+          $ref: '#/definitions/models.OrderProductRequest'
+        type: array
+    type: object
+  models.CreateOrderResponse:
+    properties:
+      message:
+        example: Order created successfully as a guest. Please sign up to claim this
+          order.
+        type: string
+      order_id:
+        example: 6
+        type: integer
+      user_order_token:
+        example: 15ff4999-2cfd-41f3-b744-926e7c5c7a0
+        type: string
+    type: object
+  models.LoginResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE
+        type: string
+    type: object
+  models.OrderProductRequest:
+    properties:
+      product_id:
+        example: 1
+        type: integer
+      quantity:
+        example: 2
+        type: integer
+    type: object
   models.SignUpResponse:
     properties:
       token:
@@ -21,15 +66,46 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: This is modileorder API
-  title: modile_oreder
+  description: This is mobileorder API
+  title: mobile_order
   version: "1.0"
 paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Get token from header and Userid
+      parameters:
+      - description: use e-mail and token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.AuthenticateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.LoginResponse'
+      security:
+      - BearerAuth: []
+      summary: login handler
+      tags:
+      - Auth
   /auth/signup:
     post:
       consumes:
       - application/json
-      description: Get token from header
+      description: Get token and user info from header
+      parameters:
+      - description: use e-mail and token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.AuthenticateRequest'
       produces:
       - application/json
       responses:
@@ -40,6 +116,32 @@ paths:
       security:
       - BearerAuth: []
       summary: signup handler
+      tags:
+      - Auth
+  /shops/:shop_id/orders:
+    post:
+      consumes:
+      - application/json
+      description: Create Order
+      parameters:
+      - description: product id and quantity
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CreateOrderResponse'
+      security:
+      - BearerAuth: []
+      summary: Createorder handler
+      tags:
+      - Order
 securityDefinitions:
   BearerAuth:
     description: '"認証トークンを''Bearer ''に続けて入力してください。例: Bearer {JWTトークン}"'
