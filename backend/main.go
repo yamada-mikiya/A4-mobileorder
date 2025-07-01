@@ -18,6 +18,16 @@ import (
 	_ "github.com/lib/pq"
 )
 
+//	@title			modile_oreder
+//	@version		1.0
+//	@description	This is modileorder API
+//	@host			localhost:8080
+//	@BashPath		/
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description "認証トークンを'Bearer 'に続けて入力してください。例: Bearer {JWTトークン}"
+
 func main() {
 	db, closer := connectDB.NewDB()
 	defer closer()

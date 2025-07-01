@@ -1,0 +1,49 @@
+definitions:
+  models.SignUpResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE
+        type: string
+      user:
+        $ref: '#/definitions/models.UserResponse'
+    type: object
+  models.UserResponse:
+    properties:
+      email:
+        example: new.user@example.com
+        type: string
+      role:
+        type: string
+      user_id:
+        example: 16
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is modileorder API
+  title: modile_oreder
+  version: "1.0"
+paths:
+  /auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Get token from header
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.SignUpResponse'
+      security:
+      - BearerAuth: []
+      summary: signup handler
+securityDefinitions:
+  BearerAuth:
+    description: '"認証トークンを''Bearer ''に続けて入力してください。例: Bearer {JWTトークン}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
