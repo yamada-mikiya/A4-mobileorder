@@ -14,11 +14,11 @@ type AdminController interface {
 }
 
 type adminController struct {
-	service services.AdminServicer
+	s services.AdminServicer
 }
 
 func NewAdminController(s services.AdminServicer) AdminController {
-	return &adminController{service: s}
+	return &adminController{s}
 }
 
 func (c *adminController) GetAdminOrderListHandler(ctx echo.Context) error {

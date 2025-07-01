@@ -12,7 +12,6 @@ import (
 )
 
 type OrderServicer interface {
-	GetProductListService(shopID int) error
 	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderProductRequest) (*models.Order, error)
 	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error)
 	GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error)
@@ -28,10 +27,6 @@ func NewOrderService(orr repositories.OrderRepository, prr repositories.ProductR
 	return &orderService{orr, prr}
 }
 
-func (s *orderService) GetProductListService(shopID int) error {
-	//TODO
-	return nil
-}
 
 func generateguestToken() (string, error) {
 	token, err := uuid.NewRandom()
@@ -121,11 +116,13 @@ func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shop
 	return totalAmount, orderProductsToCreate, nil
 }
 
+// GetUserOrders は、注文一覧ページのためのやつ
 func (s *orderService) GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
-
+	
 	return []models.OrderListResponse{}, nil
 }
 
+// GetOrderStatus は、単一注文のステータスと待ち人数を取得
 func (s *orderService) GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error) {
 	return nil, nil
 }

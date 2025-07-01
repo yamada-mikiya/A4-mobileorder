@@ -15,11 +15,11 @@ type AuthController interface {
 }
 
 type authController struct {
-	service services.AuthServicer
+	s services.AuthServicer
 }
 
 func NewAuthController(s services.AuthServicer) AuthController {
-	return &authController{service: s}
+	return &authController{s}
 }
 // @Summary 新規ユーザー登録 (SignUp)
 // @Tags Auth
@@ -37,7 +37,7 @@ func (c *authController) SignUpHandler(ctx echo.Context) error {
 	if err := ctx.Bind(&req); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
 	}
-	userRes, tokenString, err := c.service.SignUp(ctx.Request().Context(), req)
+	userRes, tokenString, err := c.s.SignUp(ctx.Request().Context(), req)
 	if err != nil {
 		if err.Error() == "email already exists" {
 			return ctx.JSON(http.StatusConflict, map[string]string{"message": "このメールアドレスは既に使用されています。"})
@@ -65,7 +65,7 @@ func (c *authController) LogInHandler(ctx echo.Context) error {
 	if err := ctx.Bind(&req); err != nil {
 		return ctx.JSON(http.StatusBadRequest, err.Error())
 	}
-	tokenString, err := c.service.LogIn(ctx.Request().Context(), req)
+	tokenString, err := c.s.LogIn(ctx.Request().Context(), req)
 	if err != nil {
 		if err.Error() == "user not found" {
 			return ctx.JSON(http.StatusUnauthorized, map[string]string{"message": "メールアドレスが見つかりません。"})

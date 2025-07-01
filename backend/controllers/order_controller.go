@@ -12,7 +12,6 @@ import (
 )
 
 type OrderController interface {
-	GetProductListHandler(ctx echo.Context) error
 	CreateAuthenticatedOrderHandler(ctx echo.Context) error
 	CreateGuestOrderHandler(ctx echo.Context) error
 	GetOrderListHandler(ctx echo.Context) error
@@ -20,17 +19,14 @@ type OrderController interface {
 }
 
 type orderController struct {
-	service services.OrderServicer
+	s services.OrderServicer
 }
 
 func NewOrderController(s services.OrderServicer) OrderController {
-	return &orderController{service: s}
+	return &orderController{s}
 }
 
-// 商品一覧を取得
-func (c *orderController) GetProductListHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Get product list")
-}
+
 
 // CreateAuthenticatedOrderHandler は認証済みユーザーの注文を作成します。
 // @Summary 認証ユーザー向け注文作成 (Create Order for Authenticated User)
@@ -58,14 +54,13 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
 	}
 
-	// jwtMiddlewareによってセットされたユーザー情報を取得
 	userToken := ctx.Get("user").(*jwt.Token)
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
 	log.Printf("Authenticated user (ID: %d) order flow", userID)
 
-	createdOrder, err := c.service.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
+	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
 	if err != nil {
 		log.Printf("Error creating authenticated order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
@@ -104,7 +99,7 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 
 	log.Println("Guest user order flow")
 
-	createdOrder, err := c.service.CreateOrder(ctx.Request().Context(), shopID, reqProd.Products)
+	createdOrder, err := c.s.CreateOrder(ctx.Request().Context(), shopID, reqProd.Products)
 	if err != nil {
 		log.Printf("Error creating guest order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "fail to create order"})
@@ -130,7 +125,7 @@ func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
-	orderList, err := c.service.GetUserOrders(ctx.Request().Context(), userID, statusParams)
+	orderList, err := c.s.GetUserOrders(ctx.Request().Context(), userID, statusParams)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order list"})
 	}
@@ -150,7 +145,7 @@ func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
-	status, err := c.service.GetOrderStatus(ctx.Request().Context(), userID, orderID)
+	status, err := c.s.GetOrderStatus(ctx.Request().Context(), userID, orderID)
 	if err != nil {
 		if err.Error() == "order not found or you do not have permission" {
 			return ctx.JSON(http.StatusNotFound, map[string]string{"message": err.Error()})

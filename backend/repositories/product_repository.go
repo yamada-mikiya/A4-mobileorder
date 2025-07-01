@@ -10,8 +10,8 @@ import (
 )
 
 type ProductRepository interface {
-	GetProductList(shopID int) error
 	ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error)
+	GetProductList(shopID int) ([]models.ProductListResponse, error)
 }
 
 type productRepository struct {
@@ -20,11 +20,6 @@ type productRepository struct {
 
 func NewProductRepository(db *sqlx.DB) ProductRepository {
 	return &productRepository{db}
-}
-
-func (r *productRepository) GetProductList(shopID int) error {
-	//TODO
-	return nil
 }
 
 func (r *productRepository) ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error) {
@@ -70,4 +65,9 @@ func (r *productRepository) ValidateAndGetProductsForShop(ctx context.Context, s
 
 	return productMap, nil
 
+}
+
+func (r *productRepository) GetProductList(shopID int) ([]models.ProductListResponse, error){
+	//TODO
+	return nil, nil
 }

@@ -41,12 +41,14 @@ func main() {
 	adminService := services.NewAdminService(adminRepository)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository)
 	orderService := services.NewOrderService(orderRepository, productRepository)
+	productService := services.NewProductService(productRepository)
 
 	adminController := controllers.NewAdminController(adminService)
 	authController := controllers.NewAuthController(authService)
 	orderController := controllers.NewOrderController(orderService)
+	productController := controllers.NewProductController(productService)
 
-	e := api.NewRouter(adminController, authController, orderController)
+	e := api.NewRouter(adminController, authController, orderController, productController)
 
 	port := os.Getenv("PORT")
 	if port == "" {

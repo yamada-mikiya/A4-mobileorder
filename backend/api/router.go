@@ -15,7 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func NewRouter(adc controllers.AdminController, auc controllers.AuthController, orc controllers.OrderController) *echo.Echo {
+func NewRouter(adc controllers.AdminController, auc controllers.AuthController, orc controllers.OrderController, prc controllers.ProductController) *echo.Echo {
 	e := echo.New()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -44,7 +44,7 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 	// --- 認証不要なエンドポイント ---
 	e.POST("/auth/signup", auc.SignUpHandler)
 	e.POST("/auth/login", auc.LogInHandler)
-	e.GET("/shops/:shop_id/products", orc.GetProductListHandler) //商品一覧ページ
+	e.GET("/shops/:shop_id/products", prc.GetProductListHandler) //商品一覧取得　←いずみん
 	e.POST("/shops/:shop_id/guest-orders", orc.CreateGuestOrderHandler) //ゲスト用注文作成
 
 	// --- 認証が必要なエンドポイント ---
@@ -58,7 +58,7 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 	{
 		adminGroup.GET("/shops/:shop_id/orders", adc.GetAdminOrderListHandler)                       // 管理者の注文一覧（クエリで絞り込み）
 		adminGroup.PATCH("/orders/:order_id/status", adc.UpdateOrderStatusHandler)                   // 管理者が注文ステータスを更新
-		adminGroup.PATCH("/products/:product_id/availability", adc.UpdateProductAvailabilityHandler) // 商品の在庫状態更新
+		adminGroup.PATCH("/products/:product_id/availability", adc.UpdateProductAvailabilityHandler) // 商品の在庫状態更新　←いずみん
 	}
 	return e
 }
