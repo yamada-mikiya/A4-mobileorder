@@ -11,20 +11,20 @@ type CreateOrderResponse struct {
 
 //ユーザー作成レスポンス
 type UserResponse struct {
-	UserID int    `json:"user_id"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
+	UserID int   `json:"user_id" example:"16"`
+	Email  string `json:"email" example:"new.user@example.com"`
+	Role string `json:"role" exapmple:"customer"`
 }
 
 //注文一覧レスポンス
 type OrderListResponse struct {
-	OrderID      int         `json:"order_id"`  // 注文ID（=注文番号として使う）
-	ShopName     string      `json:"shop_name"` // 店舗名
+	OrderID      int         `json:"order_id"`
+	ShopName     string      `json:"shop_name"`
 	OrderDate    time.Time   `json:"order_date"`
 	TotalAmount  float64     `json:"total_amount"`
 	Status       string      `json:"status"`        // "cooking" or "completed"
-	WaitingCount int         `json:"waiting_count"` // 待ち人数
-	Items        []OrderItem `json:"items"`         // 注文した商品の簡易リスト
+	WaitingCount int         `json:"waiting_count"`
+	Items        []OrderItem `json:"items"`
 }
 
 type OrderItem struct {
@@ -38,3 +38,9 @@ type OrderStatusResponse struct {
 	Status       string `json:"status"`
 	WaitingCount int    `json:"waiting_count"`
 }
+
+type SignUpResponse struct {
+	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
+	User UserResponse `json:"user"`
+}
+

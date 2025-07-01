@@ -21,7 +21,13 @@ type authController struct {
 func NewAuthController(s services.AuthServicer) AuthController {
 	return &authController{service: s}
 }
-
+//@Summary signup handler
+//@Description Get token from header
+//@Accept json
+//@Produce json
+//@success 201 {object} models.SignUpResponse
+//@Security BearerAuth
+//@Router /auth/signup [post]
 func (c *authController) SignUpHandler(ctx echo.Context) error {
 	req := models.AuthenticateRequest{}
 	if err := ctx.Bind(&req); err != nil {
