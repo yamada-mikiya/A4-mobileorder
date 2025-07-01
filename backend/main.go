@@ -18,7 +18,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-//	@title			modile_oreder
+//	@title			modile_order
 //	@version		1.0
 //	@description	This is modileorder API
 //	@host			localhost:8080
