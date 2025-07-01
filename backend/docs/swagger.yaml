@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   models.SignUpResponse:
     properties:
@@ -21,8 +22,8 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: This is modileorder API
-  title: modile_oreder
+  description: This is mobileorder API
+  title: mobile_order
   version: "1.0"
 paths:
   /auth/signup:

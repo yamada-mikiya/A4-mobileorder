@@ -1,12 +1,13 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is modileorder API",
-        "title": "modile_oreder",
+        "description": "This is mobileorder API",
+        "title": "mobile_order",
         "contact": {},
         "version": "1.0"
     },
     "host": "localhost:8080",
+    "basePath": "/",
     "paths": {
         "/auth/signup": {
             "post": {

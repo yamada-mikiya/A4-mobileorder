@@ -16,6 +16,11 @@ type UserResponse struct {
 	Role string `json:"role" exapmple:"customer"`
 }
 
+type SignUpResponse struct {
+	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
+	User UserResponse `json:"user"`
+}
+
 //注文一覧レスポンス
 type OrderListResponse struct {
 	OrderID      int         `json:"order_id"`
@@ -38,9 +43,3 @@ type OrderStatusResponse struct {
 	Status       string `json:"status"`
 	WaitingCount int    `json:"waiting_count"`
 }
-
-type SignUpResponse struct {
-	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
-	User UserResponse `json:"user"`
-}
-
