@@ -35,7 +35,7 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 	e.POST("/shops/:shop_id/orders", orc.CreateOrderHandler, middlewares.OptionalAuth)                    // 注文作成
 
 	//認証あり
-	e.GET("/orders", orc.GetOrderDetailHandler, jwtMiddleware)        // ユーザーの注文確認（注文番号など）
+	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)        // ユーザーの注文確認（注文番号など）
 	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware) // 注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
 
 	adminGroup := e.Group("/admin")

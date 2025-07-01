@@ -26,10 +26,11 @@ func main() {
 	userRepository := repositories.NewUserRepository(db)
 	orderRepository := repositories.NewOrderRepository(db)
 	shopRepository := repositories.NewShopRepository(db)
+	productRepository := repositories.NewProductRepository(db)
 
 	adminService := services.NewAdminService(adminRepository)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository)
-	orderService := services.NewOrderService(orderRepository)
+	orderService := services.NewOrderService(orderRepository, productRepository)
 
 	adminController := controllers.NewAdminController(adminService)
 	authController := controllers.NewAuthController(authService)

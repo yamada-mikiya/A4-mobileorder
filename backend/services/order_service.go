@@ -15,14 +15,17 @@ type OrderServicer interface {
 	GetProductListService(shopID int) error
 	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderProductRequest) (*models.Order, error)
 	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error)
+	GetOrderList(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error)
+	GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error)
 }
 
 type orderService struct {
-	repo repositories.OrderRepository
+	orr repositories.OrderRepository
+	prr repositories.ProductRepository
 }
 
-func NewOrderService(r repositories.OrderRepository) OrderServicer {
-	return &orderService{repo: r}
+func NewOrderService(orr repositories.OrderRepository, prr repositories.ProductRepository) OrderServicer {
+	return &orderService{orr, prr}
 }
 
 func (s *orderService) GetProductListService(shopID int) error {
@@ -58,7 +61,7 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []m
 		UserOrderToken: sql.NullString{String: userToken, Valid: true},
 	}
 
-	if err := s.repo.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
+	if err := s.orr.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +81,7 @@ func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int,
 		Status:      models.Cooking,
 	}
 
-	if err := s.repo.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
+	if err := s.orr.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
 		return nil, err
 	}
 
@@ -97,7 +100,7 @@ func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shop
 		productIDs[i] = product.ProductID
 	}
 
-	validProductMap, err := s.repo.ValidateAndGetProductsForShop(ctx, shopID, productIDs)
+	validProductMap, err := s.prr.ValidateAndGetProductsForShop(ctx, shopID, productIDs)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -116,4 +119,12 @@ func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shop
 		}
 	}
 	return totalAmount, orderProductsToCreate, nil
+}
+
+func (s *orderService) GetOrderList(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
+	return []models.OrderListResponse{}, nil
+}
+
+func (s *orderService) GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error) {
+	return nil, nil
 }

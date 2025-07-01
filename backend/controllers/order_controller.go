@@ -14,7 +14,7 @@ import (
 type OrderController interface {
 	GetProductListHandler(ctx echo.Context) error
 	CreateOrderHandler(ctx echo.Context) error
-	GetOrderDetailHandler(ctx echo.Context) error
+	GetOrderListHandler(ctx echo.Context) error
 	GetOrderStatusHandler(ctx echo.Context) error
 }
 
@@ -80,11 +80,42 @@ func (c *orderController) CreateOrderHandler(ctx echo.Context) error {
 }
 
 // ユーザーの注文詳細を取得
-func (c *orderController) GetOrderDetailHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Get order detail")
+func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
+	statusParams := ctx.QueryParams()["status"]
+	if len(statusParams) == 0 {
+		return ctx.JSON(http.StatusBadRequest, "at least one status query parameter is required")
+	}
+
+	userToken := ctx.Get("user").(jwt.Token)
+	claims := userToken.Claims.(*models.JwtCustomClaims)
+	userID := claims.UserID
+
+	orderList, err := c.service.GetOrderList(ctx.Request().Context(), userID, statusParams)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order list"})
+	}
+
+	return ctx.JSON(http.StatusOK, orderList)
 }
 
 // 注文のステータスを取得
 func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Get order status")
+	orderIDStr := ctx.Param("order_id")
+	orderID, err := strconv.Atoi(orderIDStr)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, "invalid order_id")
+	}
+
+	userToken := ctx.Get("user").(*jwt.Token)
+	claims := userToken.Claims.(*models.JwtCustomClaims)
+	userID := claims.UserID
+
+	status, err := c.service.GetOrderStatus(ctx.Request().Context(), userID, orderID)
+	if err != nil {
+		if err.Error() == "order not found or you do not have permission" {
+			return ctx.JSON(http.StatusNotFound, map[string]string{"message": err.Error()})
+		}
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order status"})
+	}
+	return ctx.JSON(http.StatusOK, status)
 }

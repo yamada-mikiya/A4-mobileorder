@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -12,10 +11,8 @@ import (
 )
 
 type OrderRepository interface {
-	GetProductList(shopID int) error
 	CreateOrder(ctx context.Context, order *models.Order, products []models.OrderProduct) error
-	ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error)
-	UpdateUserIDByGuestToken (ctx context.Context, guestToken string, userID int) error
+	UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error
 }
 
 type orderRepository struct {
@@ -24,11 +21,6 @@ type orderRepository struct {
 
 func NewOrderRepository(db *sqlx.DB) OrderRepository {
 	return &orderRepository{db}
-}
-
-func (r *orderRepository) GetProductList(shopID int) error {
-	//TODO
-	return nil
 }
 
 func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, products []models.OrderProduct) (err error) {
@@ -84,52 +76,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 	return nil
 }
 
-func (r *orderRepository) ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error) {
-
-	productMap := make(map[int]models.Product)
-
-	if len(productIDs) == 0 {
-		return productMap, nil
-	}
-
-	const baseQuery = `
-		SELECT
-			p.product_id,
-			p.product_name,
-			p.price,
-			p.is_available
-		FROM
-			products p
-		INNER JOIN
-			shop_product sp ON p.product_id = sp.product_id
-		WHERE
-			sp.shop_id = ? AND p.product_id IN (?)
-	`
-
-	query, args, err := sqlx.In(baseQuery, shopID, productIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build query for product validation: %w", err)
-	}
-	query = r.db.Rebind(query)
-
-	var products []models.Product
-	if err := r.db.SelectContext(ctx, &products, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to select products for shop: %w", err)
-	}
-
-	if len(products) != len(productIDs) {
-		return nil, errors.New("one or more products do not belong to the specified shop")
-	}
-
-	for _, p := range products {
-		productMap[p.ProductID] = p
-	}
-
-	return productMap, nil
-
-}
-
-func (r *orderRepository) UpdateUserIDByGuestToken (ctx context.Context, guestToken string, userID int) error {
+func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error {
 	query := "UPDATE orders SET user_id = $1 WHERE user_order_token = $2"
 	result, err := r.db.ExecContext(ctx, query, userID, guestToken)
 	if err != nil {
