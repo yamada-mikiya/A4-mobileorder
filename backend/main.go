@@ -18,15 +18,18 @@ import (
 	_ "github.com/lib/pq"
 )
 
-//	@title			mobile_order
-//	@version		1.0
-//	@description	This is mobileorder API
-//	@host			localhost:8080
-//	@BasePath		/
+// @title        Mobile Order API
+// @version      1.0
+// @description  モバイルオーダー（事前注文・決済）システムのためのAPI仕様書です。
+// @description  ユーザー認証、商品情報の取得、注文処理などの機能を提供します。
+
+// @host         localhost:8080
+// @BasePath     /
+
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-// @description "認証トークンを'Bearer 'に続けて入力してください。例: Bearer {JWTトークン}"
+// @description 認証トークンを'Bearer 'に続けて入力してください。 (例: Bearer {JWTトークン})
 
 func main() {
 	db, closer := connectDB.NewDB()

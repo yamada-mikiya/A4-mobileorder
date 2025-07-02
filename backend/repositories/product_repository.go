@@ -67,7 +67,7 @@ func (r *productRepository) ValidateAndGetProductsForShop(ctx context.Context, s
 
 }
 
-func (r *productRepository) GetProductList(shopID int) ([]models.ProductListResponse, error){
+func (r *productRepository) GetProductList(shopID int) ([]models.ProductListResponse, error) {
 	//TODO
 	return nil, nil
 }

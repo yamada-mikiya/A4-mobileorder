@@ -2,7 +2,9 @@ package repositories
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,6 +15,10 @@ import (
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *models.Order, products []models.OrderProduct) error
 	UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error
+	FindUserOrdersWithDetails(ctx context.Context, userID int, statuses []models.OrderStatus) ([]OrderWithDetailsDB, error)
+	FindProductsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.OrderItem, error)
+	FindOrderByIDAndUser(ctx context.Context, orderID int, userID int) (*models.Order, error)
+	CountWaitingOrders(ctx context.Context, shopID int, orderDate time.Time) (int, error)
 }
 
 type orderRepository struct {
@@ -91,3 +97,113 @@ func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestTok
 	}
 	return nil
 }
+
+// order情報をとってくる。
+type OrderWithDetailsDB struct {
+	OrderID      int                `db:"order_id"`
+	ShopName     string             `db:"shop_name"`
+	OrderDate    time.Time          `db:"order_date"`
+	TotalAmount  float64            `db:"total_amount"`
+	Status       models.OrderStatus `db:"status"`
+	WaitingCount int                `db:"waiting_count"`
+}
+
+func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID int, statuses []models.OrderStatus) ([]OrderWithDetailsDB, error) {
+	if len(statuses) == 0 {
+		return []OrderWithDetailsDB{}, nil
+	}
+	statusInts := make([]interface{}, len(statuses))
+	for i, s := range statuses {
+		statusInts[i] = int(s)
+	}
+	query, args, err := sqlx.In(`
+		SELECT
+			o.order_id,
+			s.name AS shop_name,
+			o.order_date,
+			o.total_amount,
+			o.status,
+			CASE
+				WHEN o.status = ? THEN
+					(SELECT COUNT(*)
+					 FROM orders sub
+					 WHERE sub.shop_id = o.shop_id AND status = ? AND sub.order_date < o.order_date)
+				ELSE 0
+			END AS waiting_count
+		FROM
+			orders o
+		INNER JOIN
+			shops s ON o.shop_id = s.shop_id
+		WHERE
+			o.user_id = ? AND o.status IN (?)
+		ORDER BY
+			o.order_date DESC;
+	`, models.Cooking, models.Cooking, userID, statusInts)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query: %w", err)
+	}
+	query = r.db.Rebind(query)
+
+	var orders []OrderWithDetailsDB
+	if err := r.db.SelectContext(ctx, &orders, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to select user orders: %w", err)
+	}
+
+	return orders, nil
+}
+
+// 注文の商品が何なのかとってくる
+func (r *orderRepository) FindProductsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.OrderItem, error) {
+	if len(orderIDs) == 0 {
+		return make(map[int][]models.OrderItem), nil
+	}
+
+	query, args, err := sqlx.In(`
+		SELECT op.order_id, p.product_name, op.quantity
+		FROM order_product op
+		INNER JOIN products p ON op.product_id = p.Product_id
+		WHERE op.order_id IN (?)
+	`, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+	query = r.db.Rebind(query)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	itemsMap := make(map[int][]models.OrderItem)
+	for rows.Next() {
+		var orderID int
+		var item models.OrderItem
+		if err := rows.Scan(&orderID, &item.ProductName, &item.Quantity); err != nil {
+			return nil, err
+		}
+		itemsMap[orderID] = append(itemsMap[orderID], item)
+	}
+
+	return itemsMap, nil
+}
+
+func (r *orderRepository) FindOrderByIDAndUser(ctx context.Context, orderID int, userID int) (*models.Order, error) {
+	var order models.Order
+	query := "SELECT * FROM orders WHERE order_id = $1 AND user_id = $2"
+	if err := r.db.GetContext(ctx, &order, query, orderID, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("order not found or you do not have permission")
+		}
+		return nil, err
+	}
+	return &order, nil
+}
+
+func (r *orderRepository) CountWaitingOrders(ctx context.Context, shopID int, orderDate time.Time) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM orders WHERE shop_id = $1 AND status = $2 AND order_date < $3`
+	err := r.db.GetContext(ctx, &count, query, shopID, models.Cooking, orderDate)
+	return count, err
+}
+
