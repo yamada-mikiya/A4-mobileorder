@@ -162,7 +162,7 @@ func (r *orderRepository) FindProductsByOrderIDs(ctx context.Context, orderIDs [
 	query, args, err := sqlx.In(`
 		SELECT op.order_id, p.product_name, op.quantity
 		FROM order_product op
-		INNER JOIN products p ON op.product_id = p.Product_id
+		INNER JOIN products p ON op.product_id = p.product_id
 		WHERE op.order_id IN (?)
 	`, orderIDs)
 	if err != nil {
