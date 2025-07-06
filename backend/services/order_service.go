@@ -12,7 +12,7 @@ import (
 )
 
 type OrderServicer interface {
-	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderItemRequest) (*models.Order, error)
+	CreateOrder(ctx context.Context, shopID int, reqItem []models.OrderItemRequest) (*models.Order, error)
 	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (*models.Order, error)
 	GetUserOrders(ctx context.Context, userID int) ([]models.OrderListResponse, error)
 	GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error)

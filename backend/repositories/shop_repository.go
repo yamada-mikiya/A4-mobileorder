@@ -9,7 +9,7 @@ import (
 )
 
 type ShopRepository interface {
-	FindshopIDByAdminID(ctx context.Context, userID int) (int, error)
+	FindShopIDByAdminID(ctx context.Context, userID int) (int, error)
 }
 
 type shopRepository struct {
@@ -20,7 +20,7 @@ func NewShopRepository(db *sqlx.DB) ShopRepository {
 	return &shopRepository{db}
 }
 
-func (r *shopRepository) FindshopIDByAdminID(ctx context.Context, userID int) (int, error) {
+func (r *shopRepository) FindShopIDByAdminID(ctx context.Context, userID int) (int, error) {
 	var shopIDs []int
 	query := `
 		SELECT s.shop_id FROM shops s

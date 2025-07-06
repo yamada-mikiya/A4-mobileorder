@@ -87,7 +87,7 @@ func (s *authService) createToken(ctx context.Context, user models.User) (string
 	}
 
 	if user.Role == models.AdminRole {
-		shopID, err := s.shr.FindshopIDByAdminID(ctx, user.UserID)
+		shopID, err := s.shr.FindShopIDByAdminID(ctx, user.UserID)
 		if err != nil {
 			return "", fmt.Errorf("admin user found but failed to get shop info: %w", err)
 		}

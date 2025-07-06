@@ -41,8 +41,8 @@ func NewOrderController(s services.OrderServicer) OrderController {
 // @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
 // @Router       /shops/{shop_id}/orders [post]
 func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) error {
-	reqProd := models.CreateOrderRequest{}
-	if err := ctx.Bind(&reqProd); err != nil {
+	reqItem := models.CreateOrderRequest{}
+	if err := ctx.Bind(&reqItem); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
@@ -61,7 +61,7 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 
 	log.Printf("Authenticated user (ID: %d) order flow", userID)
 
-	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Items)
+	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqItem.Items)
 	if err != nil {
 		log.Printf("Error creating authenticated order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
