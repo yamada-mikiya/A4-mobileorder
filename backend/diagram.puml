@@ -62,7 +62,6 @@ entity "shop_product" as shop_product {
 entity "shops" as shops {
   shop_id
   --
-  admin_user_id<<FK>>
   name
   description
   location
@@ -71,12 +70,22 @@ entity "shops" as shops {
   updated_at
 }
 
-users ||--o{ shops
+entity "shop_staff" as shop_staff {
+  shop_staff_id
+  --
+  shop_id<<FK>>
+  user_id<<FK>>
+  created_at
+  updated_at
+}
+
+users ||--|| shop_staff
 users |o--o{ orders
 orders ||--|{ order_product
 products ||--o{ order_product
 products ||--o{ shop_product
 shops ||--o{ shop_product
 shops ||--o{ orders
+shops ||--|{ shop_staff
 
 @enduml

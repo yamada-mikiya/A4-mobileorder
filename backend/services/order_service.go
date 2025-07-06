@@ -14,7 +14,7 @@ import (
 type OrderServicer interface {
 	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderProductRequest) (*models.Order, error)
 	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error)
-	GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error)
+	GetUserOrders(ctx context.Context, userID int) ([]models.OrderListResponse, error)
 	GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error)
 }
 
@@ -116,21 +116,9 @@ func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shop
 }
 
 // GetUserOrders は、注文一覧ページのためのやつ
-func (s *orderService) GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
-	var statuses []models.OrderStatus
-	for _, p := range statusParams {
-		switch p {
-		case "cooking":
-			statuses = append(statuses, models.Cooking)
-		case "completed":
-			statuses = append(statuses, models.Completed)
-		}
-	}
-	if len(statuses) == 0 {
-		return []models.OrderListResponse{}, nil
-	}
+func (s *orderService) GetUserOrders(ctx context.Context, userID int) ([]models.OrderListResponse, error) {
 
-	orders, err := s.orr.FindUserOrdersWithDetails(ctx, userID, statuses)
+	orders, err := s.orr.FindUserOrdersWithDetails(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

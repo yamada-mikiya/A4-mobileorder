@@ -4,11 +4,8 @@ CREATE TABLE shops (
     description TEXT,
     location VARCHAR(255),
     is_open BOOLEAN DEFAULT TRUE,
-    admin_user_id INT UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-
-    FOREIGN KEY (admin_user_id) REFERENCES users(user_id) ON DELETE SET NULL
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TRIGGER trigger_update_shops_updated_at

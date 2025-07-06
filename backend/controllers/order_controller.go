@@ -52,7 +52,10 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
 	}
 
-	userToken := ctx.Get("user").(*jwt.Token)
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
@@ -112,30 +115,27 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusCreated, resOrder)
 }
 
-// GetOrderListHandler はユーザーの注文履歴を取得します。
-// @Summary      注文履歴の取得 (Get Order List)
-// @Description  ログイン中のユーザーの注文履歴をステータスで絞り込んで取得します。
+// GetOrderListHandler は、ユーザーのアクティブな注文履歴を取得します。
+// @Summary      アクティブな注文履歴の取得 (Get Active Order List)
+// @Description  ログイン中のユーザーの、現在アクティブな（調理中または調理完了）注文履歴を取得します。このAPIは常に'cooking'と'completed'ステータスの注文のみを返します。
 // @Tags         注文 (Order)
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        status query []string true "注文ステータス (Order Status)" Enums(cooking, completed, handed) collectionFormat(multi)
-// @Success      200 {array} models.OrderListResponse "注文履歴のリスト"
-// @Failure      400 {object} map[string]string "クエリパラメータが不正です"
+// @Success      200 {array} models.OrderListResponse "アクティブな注文履歴のリスト"
 // @Failure      401 {object} map[string]string "認証に失敗しました"
 // @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
 // @Router       /orders [get]
 func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
-	statusParams := ctx.QueryParams()["status"]
-	if len(statusParams) == 0 {
-		return ctx.JSON(http.StatusBadRequest, "at least one status query parameter is required")
-	}
 
-	userToken := ctx.Get("user").(*jwt.Token)
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
-	orderList, err := c.s.GetUserOrders(ctx.Request().Context(), userID, statusParams)
+	orderList, err := c.s.GetUserOrders(ctx.Request().Context(), userID)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order list"})
 	}
@@ -164,7 +164,10 @@ func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, "invalid order_id")
 	}
 
-	userToken := ctx.Get("user").(*jwt.Token)
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 

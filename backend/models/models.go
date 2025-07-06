@@ -121,7 +121,6 @@ type Shop struct {
 	Description string    `json:"description"`
 	Location    string    `json:"location"`
 	IsOpen      bool      `json:"is_open"`
-	AdminUserID *int      `json:"admin_user_id,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

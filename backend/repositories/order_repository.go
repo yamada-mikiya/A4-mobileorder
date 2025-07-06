@@ -15,10 +15,14 @@ import (
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *models.Order, products []models.OrderProduct) error
 	UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error
-	FindUserOrdersWithDetails(ctx context.Context, userID int, statuses []models.OrderStatus) ([]OrderWithDetailsDB, error)
+	FindUserOrdersWithDetails(ctx context.Context, userID int) ([]OrderWithDetailsDB, error)
 	FindProductsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.OrderItem, error)
 	FindOrderByIDAndUser(ctx context.Context, orderID int, userID int) (*models.Order, error)
 	CountWaitingOrders(ctx context.Context, shopID int, orderDate time.Time) (int, error)
+	FindActiveOrderByShopID(ctx context.Context, shopID int) ([]AdminOrderDBResult, error)
+	FindOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) (*models.Order, error)
+	UpdateOrderStatus(ctx context.Context, orderID int, shopID int, newStatus models.OrderStatus) error
+	DeleteOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) error
 }
 
 type orderRepository struct {
@@ -108,15 +112,8 @@ type OrderWithDetailsDB struct {
 	WaitingCount int                `db:"waiting_count"`
 }
 
-func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID int, statuses []models.OrderStatus) ([]OrderWithDetailsDB, error) {
-	if len(statuses) == 0 {
-		return []OrderWithDetailsDB{}, nil
-	}
-	statusInts := make([]interface{}, len(statuses))
-	for i, s := range statuses {
-		statusInts[i] = int(s)
-	}
-	query, args, err := sqlx.In(`
+func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID int) ([]OrderWithDetailsDB, error) {
+	query := `
 		SELECT
 			o.order_id,
 			s.name AS shop_name,
@@ -124,10 +121,10 @@ func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID 
 			o.total_amount,
 			o.status,
 			CASE
-				WHEN o.status = ? THEN
+				WHEN o.status = $1 THEN
 					(SELECT COUNT(*)
 					 FROM orders sub
-					 WHERE sub.shop_id = o.shop_id AND status = ? AND sub.order_date < o.order_date)
+					 WHERE sub.shop_id = o.shop_id AND sub.status = $1 AND sub.order_date < o.order_date)
 				ELSE 0
 			END AS waiting_count
 		FROM
@@ -135,19 +132,14 @@ func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID 
 		INNER JOIN
 			shops s ON o.shop_id = s.shop_id
 		WHERE
-			o.user_id = ? AND o.status IN (?)
+			o.user_id = $2 AND o.status IN ($1, $3)
 		ORDER BY
 			o.order_date DESC;
-	`, models.Cooking, models.Cooking, userID, statusInts)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to build query: %w", err)
-	}
-	query = r.db.Rebind(query)
+	`
 
 	var orders []OrderWithDetailsDB
-	if err := r.db.SelectContext(ctx, &orders, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to select user orders: %w", err)
+	if err := r.db.SelectContext(ctx, &orders, query, models.Cooking, userID, models.Completed); err != nil {
+		return nil, fmt.Errorf("failed to select active user orders: %w", err)
 	}
 
 	return orders, nil
@@ -207,3 +199,79 @@ func (r *orderRepository) CountWaitingOrders(ctx context.Context, shopID int, or
 	return count, err
 }
 
+type AdminOrderDBResult struct {
+	OrderID       int                `db:"order_id"`
+	CustomerEmail sql.NullString     `db:"email"`
+	OrderDate     time.Time          `db:"order_date"`
+	TotalAmount   float64            `db:"total_amount"`
+	Status        models.OrderStatus `db:"status"`
+}
+
+func (r *orderRepository) FindActiveOrderByShopID(ctx context.Context, shopID int) ([]AdminOrderDBResult, error) {
+	query := `
+		SELECT
+			o.order_id, u.email, o.order_date, o.total_amount, o.status
+		FROM
+			orders o
+		LEFT JOIN
+			users u ON o.user_id = u.user_id
+		WHERE
+			o.shop_id = $1 AND o.status IN ($2, $3)
+		ORDER BY
+			o.order_date ASC
+	`
+	var orders []AdminOrderDBResult
+	if err := r.db.SelectContext(ctx, &orders, query, shopID, models.Cooking, models.Completed); err != nil {
+		return nil, fmt.Errorf("failed to select active orders for shop: %w", err)
+	}
+	return orders, nil
+}
+
+func (r *orderRepository) FindOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) (*models.Order, error) {
+	var order models.Order
+	query := `SELECT * FROM orders WHERE order_id = $1 AND shop_id = $2`
+	err := r.db.GetContext(ctx, &order, query, orderID, shopID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("order not found or permission denied")
+		}
+		return nil, err
+	}
+
+	return &order, nil
+}
+
+func (r *orderRepository) UpdateOrderStatus(ctx context.Context, orderID int, shopID int, newStatus models.OrderStatus) error {
+	query := `UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2 AND shop_id = $3`
+	result, err := r.db.ExecContext(ctx, query, newStatus, orderID, shopID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no order was updated, perhaps it was deleted or does not belong to the shop")
+	}
+	return nil
+}
+
+func (r *orderRepository) DeleteOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) error {
+	query := `DELETE FROM orders WHERE order_id = $1 AND shop_id = $2`
+	result, err := r.db.ExecContext(ctx, query, orderID, shopID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("no order was deleted. order not found or permission denied")
+	}
+
+	return nil
+}
