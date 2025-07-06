@@ -26,7 +26,7 @@ func (c *itemController) GetItemListHandler(ctx echo.Context) error {
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.Atoi(shopIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "invalid order_id"})
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "invalid shop_id"})
 	}
 
 	itemList, err := c.s.GetItemList(shopID)
