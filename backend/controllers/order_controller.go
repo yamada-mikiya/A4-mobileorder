@@ -54,7 +54,7 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 
 	userToken, ok := ctx.Get("user").(*jwt.Token)
 	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token context"})
 	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
