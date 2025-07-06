@@ -13,13 +13,13 @@ import (
 )
 
 type OrderRepository interface {
-	CreateOrder(ctx context.Context, order *models.Order, products []models.OrderProduct) error
+	CreateOrder(ctx context.Context, order *models.Order, items []models.OrderItem) error
 	UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error
-	FindUserOrdersWithDetails(ctx context.Context, userID int) ([]OrderWithDetailsDB, error)
-	FindProductsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.OrderItem, error)
+	FindActiveUserOrders(ctx context.Context, userID int) ([]OrderWithDetailsDB, error)
+	FindItemsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error)
 	FindOrderByIDAndUser(ctx context.Context, orderID int, userID int) (*models.Order, error)
 	CountWaitingOrders(ctx context.Context, shopID int, orderDate time.Time) (int, error)
-	FindActiveOrderByShopID(ctx context.Context, shopID int) ([]AdminOrderDBResult, error)
+	FindActiveShopOrders(ctx context.Context, shopID int) ([]AdminOrderDBResult, error)
 	FindOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) (*models.Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID int, shopID int, newStatus models.OrderStatus) error
 	DeleteOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) error
@@ -33,7 +33,7 @@ func NewOrderRepository(db *sqlx.DB) OrderRepository {
 	return &orderRepository{db}
 }
 
-func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, products []models.OrderProduct) (err error) {
+func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, items []models.OrderItem) (err error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -70,15 +70,15 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 		return err
 	}
 
-	//order_productにinsert
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO order_product (order_id, product_id, quantity, price_at_order) VALUES ($1, $2, $3, $4)")
+	//order_itemにinsert
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO order_item (order_id, item_id, quantity, price_at_order) VALUES ($1, $2, $3, $4)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	for _, product := range products {
-		if _, err = stmt.ExecContext(ctx, order.OrderID, product.ProductID, product.Quantity, product.PriceAtOrder); err != nil {
+	for _, item := range items {
+		if _, err = stmt.ExecContext(ctx, order.OrderID, item.ItemID, item.Quantity, item.PriceAtOrder); err != nil {
 			return err
 		}
 	}
@@ -102,7 +102,7 @@ func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestTok
 	return nil
 }
 
-// order情報をとってくる。
+// ユーザーの注文情報をとってくる。
 type OrderWithDetailsDB struct {
 	OrderID      int                `db:"order_id"`
 	ShopName     string             `db:"shop_name"`
@@ -112,7 +112,7 @@ type OrderWithDetailsDB struct {
 	WaitingCount int                `db:"waiting_count"`
 }
 
-func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID int) ([]OrderWithDetailsDB, error) {
+func (r *orderRepository) FindActiveUserOrders(ctx context.Context, userID int) ([]OrderWithDetailsDB, error) {
 	query := `
 		SELECT
 			o.order_id,
@@ -146,15 +146,15 @@ func (r *orderRepository) FindUserOrdersWithDetails(ctx context.Context, userID 
 }
 
 // 注文の商品が何なのかとってくる
-func (r *orderRepository) FindProductsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.OrderItem, error) {
+func (r *orderRepository) FindItemsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error) {
 	if len(orderIDs) == 0 {
-		return make(map[int][]models.OrderItem), nil
+		return make(map[int][]models.ItemDetail), nil
 	}
 
 	query, args, err := sqlx.In(`
-		SELECT op.order_id, p.product_name, op.quantity
-		FROM order_product op
-		INNER JOIN products p ON op.product_id = p.product_id
+		SELECT op.order_id, p.item_name, op.quantity
+		FROM order_item op
+		INNER JOIN items p ON op.item_id = p.item_id
 		WHERE op.order_id IN (?)
 	`, orderIDs)
 	if err != nil {
@@ -167,11 +167,11 @@ func (r *orderRepository) FindProductsByOrderIDs(ctx context.Context, orderIDs [
 		return nil, err
 	}
 	defer rows.Close()
-	itemsMap := make(map[int][]models.OrderItem)
+	itemsMap := make(map[int][]models.ItemDetail)
 	for rows.Next() {
 		var orderID int
-		var item models.OrderItem
-		if err := rows.Scan(&orderID, &item.ProductName, &item.Quantity); err != nil {
+		var item models.ItemDetail
+		if err := rows.Scan(&orderID, &item.ItemName, &item.Quantity); err != nil {
 			return nil, err
 		}
 		itemsMap[orderID] = append(itemsMap[orderID], item)
@@ -199,6 +199,7 @@ func (r *orderRepository) CountWaitingOrders(ctx context.Context, shopID int, or
 	return count, err
 }
 
+//管理者が注文取得
 type AdminOrderDBResult struct {
 	OrderID       int                `db:"order_id"`
 	CustomerEmail sql.NullString     `db:"email"`
@@ -206,8 +207,7 @@ type AdminOrderDBResult struct {
 	TotalAmount   float64            `db:"total_amount"`
 	Status        models.OrderStatus `db:"status"`
 }
-
-func (r *orderRepository) FindActiveOrderByShopID(ctx context.Context, shopID int) ([]AdminOrderDBResult, error) {
+func (r *orderRepository) FindActiveShopOrders(ctx context.Context, shopID int) ([]AdminOrderDBResult, error) {
 	query := `
 		SELECT
 			o.order_id, u.email, o.order_date, o.total_amount, o.status

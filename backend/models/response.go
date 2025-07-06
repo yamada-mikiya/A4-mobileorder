@@ -29,12 +29,12 @@ type OrderListResponse struct {
 	TotalAmount  float64     `json:"total_amount"`
 	Status       string      `json:"status"` // "cooking" or "completed"
 	WaitingCount int         `json:"waiting_count"`
-	Items        []OrderItem `json:"items"`
+	Items        []ItemDetail `json:"items"`
 }
 
-type OrderItem struct {
-	ProductName string `json:"product_name"`
-	Quantity    int    `json:"quantity"`
+type ItemDetail struct {
+	ItemName string `json:"item_name"`
+	Quantity int    `json:"quantity"`
 }
 
 // 注文のステータスと待ち人数表示レスポンス
@@ -49,7 +49,7 @@ type LoginResponse struct {
 }
 
 // いずみん
-type ProductListResponse struct {
+type ItemListResponse struct {
 	a int
 }
 
@@ -59,7 +59,7 @@ type AdminOrderResponse struct {
 	OrderDate     time.Time   `json:"order_date"`
 	TotalAmount   float64     `json:"total_amount"`
 	Status        string      `json:"status"`
-	Items         []OrderItem `json:"items"`
+	Items         []ItemDetail `json:"items"`
 }
 
 type AdminOrderPageResponse struct {

@@ -61,7 +61,7 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 
 	log.Printf("Authenticated user (ID: %d) order flow", userID)
 
-	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
+	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Items)
 	if err != nil {
 		log.Printf("Error creating authenticated order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
@@ -87,8 +87,8 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 // @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
 // @Router       /shops/{shop_id}/guest-orders [post]
 func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
-	reqProd := models.CreateOrderRequest{}
-	if err := ctx.Bind(&reqProd); err != nil {
+	reqItem := models.CreateOrderRequest{}
+	if err := ctx.Bind(&reqItem); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
@@ -100,7 +100,7 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 
 	log.Println("Guest user order flow")
 
-	createdOrder, err := c.s.CreateOrder(ctx.Request().Context(), shopID, reqProd.Products)
+	createdOrder, err := c.s.CreateOrder(ctx.Request().Context(), shopID, reqItem.Items)
 	if err != nil {
 		log.Printf("Error creating guest order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "fail to create order"})

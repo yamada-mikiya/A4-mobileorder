@@ -8,28 +8,28 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type ProductController interface {
-	GetProductListHandler(ctx echo.Context) error
+type ItemController interface {
+	GetItemListHandler(ctx echo.Context) error
 }
 
-type productController struct {
-	s services.ProductServicer
+type itemController struct {
+	s services.ItemServicer
 }
 
-func NewProductController(s services.ProductServicer) ProductController {
-	return &productController{s}
+func NewItemController(s services.ItemServicer) ItemController {
+	return &itemController{s}
 }
 
 // 商品一覧を取得
-//いずみん
-func (c *productController) GetProductListHandler(ctx echo.Context) error {
+// いずみん
+func (c *itemController) GetItemListHandler(ctx echo.Context) error {
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.Atoi(shopIDStr)
 	if err != nil {
 		return ctx.JSON(http.StatusBadRequest, "invalid order_id")
 	}
 
-	productList, err := c.s.GetProductList(shopID)
+	itemList, err := c.s.GetItemList(shopID)
 
-	return ctx.JSON(http.StatusOK, productList)
+	return ctx.JSON(http.StatusOK, itemList)
 }

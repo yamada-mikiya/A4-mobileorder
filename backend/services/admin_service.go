@@ -24,7 +24,7 @@ func NewAdminService(orr repositories.OrderRepository) AdminServicer {
 
 func (s *adminService) GetAdminOrderPageData(ctx context.Context, shopID int) (*models.AdminOrderPageResponse, error) {
 
-	dbOrders, err := s.orr.FindActiveOrderByShopID(ctx, shopID)
+	dbOrders, err := s.orr.FindActiveShopOrders(ctx, shopID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *adminService) GetAdminOrderPageData(ctx context.Context, shopID int) (*
 	for i, o := range dbOrders {
 		orderIDs[i] = o.OrderID
 	}
-	productsMap, err := s.orr.FindProductsByOrderIDs(ctx, orderIDs)
+	itemsMap, err := s.orr.FindItemsByOrderIDs(ctx, orderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (s *adminService) GetAdminOrderPageData(ctx context.Context, shopID int) (*
 			OrderDate:     dbOrder.OrderDate,
 			TotalAmount:   dbOrder.TotalAmount,
 			Status:        dbOrder.Status.String(),
-			Items:         productsMap[dbOrder.OrderID],
+			Items:         itemsMap[dbOrder.OrderID],
 		}
 
 		switch dbOrder.Status {

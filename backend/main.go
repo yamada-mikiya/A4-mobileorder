@@ -38,19 +38,19 @@ func main() {
 	userRepository := repositories.NewUserRepository(db)
 	orderRepository := repositories.NewOrderRepository(db)
 	shopRepository := repositories.NewShopRepository(db)
-	productRepository := repositories.NewProductRepository(db)
+	itemRepository := repositories.NewItemRepository(db)
 
 	adminService := services.NewAdminService(orderRepository)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository)
-	orderService := services.NewOrderService(orderRepository, productRepository)
-	productService := services.NewProductService(productRepository)
+	orderService := services.NewOrderService(orderRepository, itemRepository)
+	itemService := services.NewItemService(itemRepository)
 
 	adminController := controllers.NewAdminController(adminService)
 	authController := controllers.NewAuthController(authService)
 	orderController := controllers.NewOrderController(orderService)
-	productController := controllers.NewProductController(productService)
+	itemController := controllers.NewItemController(itemService)
 
-	e := api.NewRouter(adminController, authController, orderController, productController)
+	e := api.NewRouter(adminController, authController, orderController, itemController)
 
 	port := os.Getenv("PORT")
 	if port == "" {

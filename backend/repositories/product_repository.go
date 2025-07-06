@@ -9,65 +9,65 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type ProductRepository interface {
-	ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error)
-	GetProductList(shopID int) ([]models.ProductListResponse, error)
+type ItemRepository interface {
+	ValidateAndGetItemsForShop(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error)
+	GetItemList(shopID int) ([]models.ItemListResponse, error)
 }
 
-type productRepository struct {
+type itemRepository struct {
 	db *sqlx.DB
 }
 
-func NewProductRepository(db *sqlx.DB) ProductRepository {
-	return &productRepository{db}
+func NewItemRepository(db *sqlx.DB) ItemRepository {
+	return &itemRepository{db}
 }
 
-func (r *productRepository) ValidateAndGetProductsForShop(ctx context.Context, shopID int, productIDs []int) (map[int]models.Product, error) {
+func (r *itemRepository) ValidateAndGetItemsForShop(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error) {
 	//商品IDで商品情報取得
-	productMap := make(map[int]models.Product)
+	itemMap := make(map[int]models.Item)
 
-	if len(productIDs) == 0 {
-		return productMap, nil
+	if len(itemIDs) == 0 {
+		return itemMap, nil
 	}
 
 	const baseQuery = `
 		SELECT
-			p.product_id,
-			p.product_name,
+			p.item_id,
+			p.item_name,
 			p.price,
 			p.is_available
 		FROM
-			products p
+			items p
 		INNER JOIN
-			shop_product sp ON p.product_id = sp.product_id
+			shop_item sp ON p.item_id = sp.item_id
 		WHERE
-			sp.shop_id = ? AND p.product_id IN (?)
+			sp.shop_id = ? AND p.item_id IN (?)
 	`
 
-	query, args, err := sqlx.In(baseQuery, shopID, productIDs)
+	query, args, err := sqlx.In(baseQuery, shopID, itemIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build query for product validation: %w", err)
+		return nil, fmt.Errorf("failed to build query for item validation: %w", err)
 	}
 	query = r.db.Rebind(query)
 
-	var products []models.Product
-	if err := r.db.SelectContext(ctx, &products, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to select products for shop: %w", err)
+	var items []models.Item
+	if err := r.db.SelectContext(ctx, &items, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to select items for shop: %w", err)
 	}
 
-	if len(products) != len(productIDs) {
-		return nil, errors.New("one or more products do not belong to the specified shop")
+	if len(items) != len(itemIDs) {
+		return nil, errors.New("one or more items do not belong to the specified shop")
 	}
 
-	for _, p := range products {
-		productMap[p.ProductID] = p
+	for _, p := range items {
+		itemMap[p.ItemID] = p
 	}
 
-	return productMap, nil
+	return itemMap, nil
 
 }
 
-func (r *productRepository) GetProductList(shopID int) ([]models.ProductListResponse, error) {
+func (r *itemRepository) GetItemList(shopID int) ([]models.ItemListResponse, error) {
 	//TODO
 	return nil, nil
 }

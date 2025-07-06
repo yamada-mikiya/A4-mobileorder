@@ -5,19 +5,19 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 )
 
-type ProductServicer interface {
-	GetProductList(shopID int) ([]models.ProductListResponse, error)
+type ItemServicer interface {
+	GetItemList(shopID int) ([]models.ItemListResponse, error)
 }
 
-type productService struct {
-	r repositories.ProductRepository
+type itemService struct {
+	r repositories.ItemRepository
 }
 
-func NewProductService(r repositories.ProductRepository) ProductServicer {
-	return &productService{r}
+func NewItemService(r repositories.ItemRepository) ItemServicer {
+	return &itemService{r}
 }
 
-func (s *productService) GetProductList(shopID int) ([]models.ProductListResponse, error) {
+func (s *itemService) GetItemList(shopID int) ([]models.ItemListResponse, error) {
 
 	return nil, nil
 }

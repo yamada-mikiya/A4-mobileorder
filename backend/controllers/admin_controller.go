@@ -15,7 +15,7 @@ import (
 type AdminController interface {
 	GetAdminOrderListHandler(ctx echo.Context) error
 	UpdateOrderStatusHandler(ctx echo.Context) error
-	UpdateProductAvailabilityHandler(ctx echo.Context) error
+	UpdateItemAvailabilityHandler(ctx echo.Context) error
 	DeleteOrderHandler(ctx echo.Context) error
 }
 
@@ -27,6 +27,20 @@ func NewAdminController(s services.AdminServicer) AdminController {
 	return &adminController{s}
 }
 
+// GetAdminOrderListHandler は、管理者が担当する店舗の注文一覧を取得します。
+// @Summary      管理店舗の注文一覧を取得 (Admin)
+// @Description  ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。
+// @Tags         管理者 (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        shop_id path int true "注文一覧を取得する店舗のID"
+// @Success      200 {object} models.AdminOrderPageResponse "調理中と調理完了に分かれた注文リスト"
+// @Failure      400 {object} map[string]string "店舗IDの形式が不正です"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      403 {object} map[string]string "この店舗へのアクセス権がありません"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /admin/shops/{shop_id}/orders [get]
 func (c *adminController) GetAdminOrderListHandler(ctx echo.Context) error {
 
 	targetShopIDStr := ctx.Param("shop_id")
@@ -63,7 +77,21 @@ func (c *adminController) GetAdminOrderListHandler(ctx echo.Context) error {
 }
 
 // UpdateOrderStatusHandler は、注文のステータスを一段階進めます。
-// PATCH /admin/shops/:shop_id/orders/:order_id/status のようなURLを想定
+// @Summary      注文ステータスの更新 (Admin)
+// @Description  管理者が担当する店舗の注文ステータスを一段階進めます (調理中→調理完了→お渡し済み)。リクエストボディは不要です。
+// @Tags         管理者 (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        order_id path int true "ステータスを更新する注文のID"
+// @Success      200 {object} map[string]string "成功メッセージ"
+// @Failure      400 {object} map[string]string "注文IDの形式が不正です"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      403 {object} map[string]string "この注文へのアクセス権がありません"
+// @Failure      404 {object} map[string]string "指定された注文が見つかりません"
+// @Failure      409 {object} map[string]string "これ以上ステータスを進められない場合に返されます (例: 'handed'の注文)"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /admin/orders/{order_id}/status [patch]
 func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 
 	userToken, ok := ctx.Get("user").(*jwt.Token)
@@ -100,6 +128,21 @@ func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, map[string]string{"message": "Order status advanced successfully."})
 }
 
+// DeleteOrderHandler は、管理者が担当する店舗の注文を削除します。
+// @Summary      注文の削除 (Admin)
+// @Description  管理者が担当する店舗の注文を削除します。
+// @Tags         管理者 (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        order_id path int true "削除する注文のID"
+// @Success      200 {object} map[string]string "成功メッセージ"
+// @Failure      400 {object} map[string]string "注文IDの形式が不正です"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      403 {object} map[string]string "この注文へのアクセス権がありません"
+// @Failure      404 {object} map[string]string "指定された注文が見つかりません"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /admin/orders/{order_id}/delete [delete]
 func (c *adminController) DeleteOrderHandler(ctx echo.Context) error {
 
 	userToken, ok := ctx.Get("user").(*jwt.Token)
@@ -131,6 +174,6 @@ func (c *adminController) DeleteOrderHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, map[string]string{"message": "Order deleted successfully."})
 }
 
-func (c *adminController) UpdateProductAvailabilityHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Update product availability")
+func (c *adminController) UpdateItemAvailabilityHandler(ctx echo.Context) error {
+	return ctx.String(http.StatusOK, "Update item availability")
 }

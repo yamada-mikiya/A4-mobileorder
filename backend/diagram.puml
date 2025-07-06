@@ -28,21 +28,21 @@ entity "orders" as orders {
   updated_at
 }
 
-entity "order_product" as order_product {
-  order_product_id
+entity "order_item" as order_item {
+  order_item_id
   --
   order_id<<FK>>
-  product_id<<FK>>
+  item_id<<FK>>
   quantity
   price_at_order
   created_at
   updated_at
 }
 
-entity "products" as products {
-  product_id
+entity "items" as items {
+  item_id
   --
-  product_name
+  item_name
   description
   price
   is_available
@@ -50,10 +50,10 @@ entity "products" as products {
   updated_at
 }
 
-entity "shop_product" as shop_product {
-  shop_product_id
+entity "shop_item" as shop_item {
+  shop_item_id
   --
-  product_id<<FK>>
+  item_id<<FK>>
   shop_id<<FK>>
   created_at
   updated_at
@@ -81,10 +81,10 @@ entity "shop_staff" as shop_staff {
 
 users ||--|| shop_staff
 users |o--o{ orders
-orders ||--|{ order_product
-products ||--o{ order_product
-products ||--o{ shop_product
-shops ||--o{ shop_product
+orders ||--|{ order_item
+items ||--o{ order_item
+items ||--o{ shop_item
+shops ||--o{ shop_item
 shops ||--o{ orders
 shops ||--|{ shop_staff
 

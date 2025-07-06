@@ -1,6 +1,6 @@
 -- データのクリア (開発時に毎回クリーンな状態にするため)
 -- 外部キー制約があるため、TRUNCATEの順番に注意
-TRUNCATE TABLE order_product, orders, shop_staff, shop_product, users, shops, products RESTART IDENTITY CASCADE;
+TRUNCATE TABLE order_item, orders, shop_staff, shop_item, users, shops, items RESTART IDENTITY CASCADE;
 
 -- ユーザーを15人作成 (管理者5人、顧客10人)
 -- role: 1 = Customer, 2 = Admin
@@ -38,7 +38,7 @@ INSERT INTO shop_staff(user_id, shop_id) VALUES
 (5, 5); -- admin5 は カフェ・ド・異人館 を担当
 
 -- 商品を15件作成
-INSERT INTO products (product_name, description, price) VALUES
+INSERT INTO items (item_name, description, price) VALUES
 -- 定食屋の商品 (ID: 1-4)
 ('唐揚げ定食', 'ジューシーなもも肉をカラッと揚げました。', 850),
 ('生姜焼き定食', '特製ダレが絡んだ豚ロース。ご飯が進みます。', 900),
@@ -60,8 +60,8 @@ INSERT INTO products (product_name, description, price) VALUES
 ('チーズケーキ', '濃厚でなめらかな口溶けのベイクドチーズケーキ。', 650),
 ('アイスティー', 'アールグレイの爽やかな香り。', 550);
 
--- 店舗と商品の関連付け (shop_productテーブル)
-INSERT INTO shop_product(shop_id, product_id) VALUES
+-- 店舗と商品の関連付け (shop_itemテーブル)
+INSERT INTO shop_item(shop_id, item_id) VALUES
 -- A4食堂 (shop_id: 1)
 (1, 1), (1, 2), (1, 3), (1, 4),
 -- 元町ラーメン一番星 (shop_id: 2)
@@ -84,8 +84,8 @@ INSERT INTO orders (user_id, shop_id, order_date, total_amount, guest_order_toke
 -- ゲストユーザーの注文 (user_idがNULL)
 (NULL, 3, NOW() - INTERVAL '5 minutes', 900, 'guest-token-12345', 1); -- 三宮ベーカリーでクロワッサンとコーヒー (調理中)
 
--- 注文と商品の関連付け (order_productテーブル)
-INSERT INTO order_product (order_id, product_id, quantity, price_at_order) VALUES
+-- 注文と商品の関連付け (order_itemテーブル)
+INSERT INTO order_item (order_id, item_id, quantity, price_at_order) VALUES
 -- 注文ID: 1 (唐揚げ定食)
 (1, 1, 1, 850),
 -- 注文ID: 2 (味玉つけ麺)

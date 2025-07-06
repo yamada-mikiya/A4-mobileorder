@@ -1,5 +1,35 @@
 basePath: /
 definitions:
+  models.AdminOrderPageResponse:
+    properties:
+      completed_orders:
+        description: 「調理完了」の注文リスト
+        items:
+          $ref: '#/definitions/models.AdminOrderResponse'
+        type: array
+      cooking_orders:
+        description: 「調理中」の注文リスト
+        items:
+          $ref: '#/definitions/models.AdminOrderResponse'
+        type: array
+    type: object
+  models.AdminOrderResponse:
+    properties:
+      customer_email:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.ItemDetail'
+        type: array
+      order_date:
+        type: string
+      order_id:
+        type: integer
+      status:
+        type: string
+      total_amount:
+        type: number
+    type: object
   models.AuthenticateRequest:
     properties:
       email:
@@ -16,9 +46,9 @@ definitions:
     type: object
   models.CreateOrderRequest:
     properties:
-      products:
+      items:
         items:
-          $ref: '#/definitions/models.OrderProductRequest'
+          $ref: '#/definitions/models.OrderItemRequest'
         type: array
     type: object
   models.CreateOrderResponse:
@@ -34,24 +64,33 @@ definitions:
         example: 6
         type: integer
     type: object
+  models.ItemDetail:
+    properties:
+      item_name:
+        type: string
+      quantity:
+        type: integer
+    type: object
   models.LoginResponse:
     properties:
       token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE
         type: string
     type: object
-  models.OrderItem:
+  models.OrderItemRequest:
     properties:
-      product_name:
-        type: string
+      item_id:
+        example: 1
+        type: integer
       quantity:
+        example: 2
         type: integer
     type: object
   models.OrderListResponse:
     properties:
       items:
         items:
-          $ref: '#/definitions/models.OrderItem'
+          $ref: '#/definitions/models.ItemDetail'
         type: array
       order_date:
         type: string
@@ -65,15 +104,6 @@ definitions:
       total_amount:
         type: number
       waiting_count:
-        type: integer
-    type: object
-  models.OrderProductRequest:
-    properties:
-      product_id:
-        example: 1
-        type: integer
-      quantity:
-        example: 2
         type: integer
     type: object
   models.OrderStatusResponse:
@@ -113,6 +143,169 @@ info:
   title: Mobile Order API
   version: "1.0"
 paths:
+  /admin/orders/{order_id}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 管理者が担当する店舗の注文を削除します。
+      parameters:
+      - description: 削除する注文のID
+        in: path
+        name: order_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功メッセージ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 注文IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この注文へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 指定された注文が見つかりません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 注文の削除 (Admin)
+      tags:
+      - 管理者 (Admin)
+  /admin/orders/{order_id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: 管理者が担当する店舗の注文ステータスを一段階進めます (調理中→調理完了→お渡し済み)。リクエストボディは不要です。
+      parameters:
+      - description: ステータスを更新する注文のID
+        in: path
+        name: order_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功メッセージ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 注文IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この注文へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 指定された注文が見つかりません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 'これ以上ステータスを進められない場合に返されます (例: ''handed''の注文)'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 注文ステータスの更新 (Admin)
+      tags:
+      - 管理者 (Admin)
+  /admin/shops/{shop_id}/orders:
+    get:
+      consumes:
+      - application/json
+      description: ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。
+      parameters:
+      - description: 注文一覧を取得する店舗のID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 調理中と調理完了に分かれた注文リスト
+          schema:
+            $ref: '#/definitions/models.AdminOrderPageResponse'
+        "400":
+          description: 店舗IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この店舗へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 管理店舗の注文一覧を取得 (Admin)
+      tags:
+      - 管理者 (Admin)
   /auth/login:
     post:
       consumes:
@@ -201,35 +394,16 @@ paths:
     get:
       consumes:
       - application/json
-      description: ログイン中のユーザーの注文履歴をステータスで絞り込んで取得します。
-      parameters:
-      - collectionFormat: multi
-        description: 注文ステータス (Order Status)
-        in: query
-        items:
-          enum:
-          - cooking
-          - completed
-          - handed
-          type: string
-        name: status
-        required: true
-        type: array
+      description: ログイン中のユーザーの、現在アクティブな（調理中または調理完了）注文履歴を取得します。このAPIは常に'cooking'と'completed'ステータスの注文のみを返します。
       produces:
       - application/json
       responses:
         "200":
-          description: 注文履歴のリスト
+          description: アクティブな注文履歴のリスト
           schema:
             items:
               $ref: '#/definitions/models.OrderListResponse'
             type: array
-        "400":
-          description: クエリパラメータが不正です
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "401":
           description: 認証に失敗しました
           schema:
@@ -244,7 +418,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: 注文履歴の取得 (Get Order List)
+      summary: アクティブな注文履歴の取得 (Get Active Order List)
       tags:
       - 注文 (Order)
   /orders/{order_id}/status:
