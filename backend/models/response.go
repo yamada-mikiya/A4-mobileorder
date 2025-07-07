@@ -23,12 +23,13 @@ type SignUpResponse struct {
 
 // 注文一覧レスポンス
 type OrderListResponse struct {
-	OrderID      int         `json:"order_id"`
-	ShopName     string      `json:"shop_name"`
-	OrderDate    time.Time   `json:"order_date"`
-	TotalAmount  float64     `json:"total_amount"`
-	Status       string      `json:"status"` // "cooking" or "completed"
-	WaitingCount int         `json:"waiting_count"`
+	OrderID      int          `json:"order_id"`
+	ShopName     string       `json:"shop_name"`
+	Location     string       `json:"location"`
+	OrderDate    time.Time    `json:"order_date"`
+	TotalAmount  float64      `json:"total_amount"`
+	Status       string       `json:"status"` // "cooking" or "completed"
+	WaitingCount int          `json:"waiting_count"`
 	Items        []ItemDetail `json:"items"`
 }
 
@@ -54,11 +55,11 @@ type ItemListResponse struct {
 }
 
 type AdminOrderResponse struct {
-	OrderID       int         `json:"order_id"`
-	CustomerEmail *string     `json:"customer_email"`
-	OrderDate     time.Time   `json:"order_date"`
-	TotalAmount   float64     `json:"total_amount"`
-	Status        string      `json:"status"`
+	OrderID       int          `json:"order_id"`
+	CustomerEmail *string      `json:"customer_email"`
+	OrderDate     time.Time    `json:"order_date"`
+	TotalAmount   float64      `json:"total_amount"`
+	Status        string       `json:"status"`
 	Items         []ItemDetail `json:"items"`
 }
 

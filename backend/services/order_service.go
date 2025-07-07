@@ -141,6 +141,7 @@ func (s *orderService) GetUserOrders(ctx context.Context, userID int) ([]models.
 		resDTOs[i] = models.OrderListResponse{
 			OrderID:      repoOrder.OrderID,
 			ShopName:     repoOrder.ShopName,
+			Location:     repoOrder.Location,
 			OrderDate:    repoOrder.OrderDate,
 			TotalAmount:  repoOrder.TotalAmount,
 			Status:       repoOrder.Status.String(),

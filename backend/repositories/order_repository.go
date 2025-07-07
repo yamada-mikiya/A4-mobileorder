@@ -106,6 +106,7 @@ func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestTok
 type OrderWithDetailsDB struct {
 	OrderID      int                `db:"order_id"`
 	ShopName     string             `db:"shop_name"`
+	Location     string             `db:"location"`
 	OrderDate    time.Time          `db:"order_date"`
 	TotalAmount  float64            `db:"total_amount"`
 	Status       models.OrderStatus `db:"status"`
@@ -117,6 +118,7 @@ func (r *orderRepository) FindActiveUserOrders(ctx context.Context, userID int) 
 		SELECT
 			o.order_id,
 			s.name AS shop_name,
+			s.location,
 			o.order_date,
 			o.total_amount,
 			o.status,
