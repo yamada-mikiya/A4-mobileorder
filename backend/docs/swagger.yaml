@@ -1,5 +1,35 @@
 basePath: /
 definitions:
+  models.AdminOrderPageResponse:
+    properties:
+      completed_orders:
+        description: 「調理完了」の注文リスト
+        items:
+          $ref: '#/definitions/models.AdminOrderResponse'
+        type: array
+      cooking_orders:
+        description: 「調理中」の注文リスト
+        items:
+          $ref: '#/definitions/models.AdminOrderResponse'
+        type: array
+    type: object
+  models.AdminOrderResponse:
+    properties:
+      customer_email:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.ItemDetail'
+        type: array
+      order_date:
+        type: string
+      order_id:
+        type: integer
+      status:
+        type: string
+      total_amount:
+        type: number
+    type: object
   models.AuthenticateRequest:
     properties:
       email:
@@ -16,9 +46,9 @@ definitions:
     type: object
   models.CreateOrderRequest:
     properties:
-      products:
+      items:
         items:
-          $ref: '#/definitions/models.OrderProductRequest'
+          $ref: '#/definitions/models.OrderItemRequest'
         type: array
     type: object
   models.CreateOrderResponse:
@@ -34,19 +64,55 @@ definitions:
         example: 6
         type: integer
     type: object
+  models.ItemDetail:
+    properties:
+      item_name:
+        type: string
+      quantity:
+        type: integer
+    type: object
   models.LoginResponse:
     properties:
       token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE
         type: string
     type: object
-  models.OrderProductRequest:
+  models.OrderItemRequest:
     properties:
-      product_id:
+      item_id:
         example: 1
         type: integer
       quantity:
         example: 2
+        type: integer
+    type: object
+  models.OrderListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/models.ItemDetail'
+        type: array
+      order_date:
+        type: string
+      order_id:
+        type: integer
+      shop_name:
+        type: string
+      status:
+        description: '"cooking" or "completed"'
+        type: string
+      total_amount:
+        type: number
+      waiting_count:
+        type: integer
+    type: object
+  models.OrderStatusResponse:
+    properties:
+      order_id:
+        type: integer
+      status:
+        type: string
+      waiting_count:
         type: integer
     type: object
   models.SignUpResponse:
@@ -71,19 +137,186 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: This is mobileorder API
-  title: mobile_order
+  description: |-
+    モバイルオーダー（事前注文・決済）システムのためのAPI仕様書です。
+    ユーザー認証、商品情報の取得、注文処理などの機能を提供します。
+  title: Mobile Order API
   version: "1.0"
 paths:
+  /admin/orders/{order_id}/delete:
+    delete:
+      consumes:
+      - application/json
+      description: 管理者が担当する店舗の注文を削除します。
+      parameters:
+      - description: 削除する注文のID
+        in: path
+        name: order_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功メッセージ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 注文IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この注文へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 指定された注文が見つかりません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 注文の削除 (Admin)
+      tags:
+      - 管理者 (Admin)
+  /admin/orders/{order_id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: 管理者が担当する店舗の注文ステータスを一段階進めます (調理中→調理完了→お渡し済み)。リクエストボディは不要です。
+      parameters:
+      - description: ステータスを更新する注文のID
+        in: path
+        name: order_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功メッセージ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 注文IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この注文へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 指定された注文が見つかりません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: 'これ以上ステータスを進められない場合に返されます (例: ''handed''の注文)'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 注文ステータスの更新 (Admin)
+      tags:
+      - 管理者 (Admin)
+  /admin/shops/{shop_id}/orders:
+    get:
+      consumes:
+      - application/json
+      description: ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。
+      parameters:
+      - description: 注文一覧を取得する店舗のID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 調理中と調理完了に分かれた注文リスト
+          schema:
+            $ref: '#/definitions/models.AdminOrderPageResponse'
+        "400":
+          description: 店舗IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この店舗へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 管理店舗の注文一覧を取得 (Admin)
+      tags:
+      - 管理者 (Admin)
   /auth/login:
     post:
       consumes:
       - application/json
-      description: 既存のユーザーを認証し、新しい認証トークンを発行します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
+      description: |-
+        既存のユーザーを認証し、新しい認証トークンを発行します。
+        リクエストにゲスト注文トークンを含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
       parameters:
-      - description: ユーザーのメールアドレスと、任意でゲスト注文トークン
+      - description: ユーザー情報 (メールアドレスと、任意でゲスト注文トークン)
         in: body
-        name: body
+        name: payload
         required: true
         schema:
           $ref: '#/definitions/models.AuthenticateRequest'
@@ -91,39 +324,41 @@ paths:
       - application/json
       responses:
         "200":
-          description: 認証成功時のレスポンス
+          description: 認証成功。新しい認証トークンを返します。
           schema:
             $ref: '#/definitions/models.LoginResponse'
         "400":
-          description: リクエストが不正な場合
+          description: リクエストボディが不正です
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: 認証に失敗した場合
+          description: 認証に失敗しました (メールアドレスが存在しない等)
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: サーバー内部エラー
+          description: サーバー内部でエラーが発生しました
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: ユーザー認証 (LogIn)
+      summary: ログイン (Log In)
       tags:
-      - Auth
+      - 認証 (Auth)
   /auth/signup:
     post:
       consumes:
       - application/json
-      description: 新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
+      description: |-
+        新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。
+        リクエストにゲスト注文トークンを含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。
       parameters:
-      - description: ユーザーのメールアドレスと、任意でゲスト注文トークン
+      - description: ユーザー情報 (メールアドレスと、任意でゲスト注文トークン)
         in: body
-        name: body
+        name: payload
         required: true
         schema:
           $ref: '#/definitions/models.AuthenticateRequest'
@@ -131,44 +366,122 @@ paths:
       - application/json
       responses:
         "201":
-          description: 登録成功時のレスポンス
+          description: 登録成功。ユーザー情報と認証トークンを返します。
           schema:
             $ref: '#/definitions/models.SignUpResponse'
         "400":
-          description: リクエストが不正な場合
+          description: リクエストボディが不正です
           schema:
             additionalProperties:
               type: string
             type: object
         "409":
-          description: メールアドレスが既に使用されている場合
+          description: 指定されたメールアドレスは既に使用されています
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: サーバー内部エラー
+          description: サーバー内部でエラーが発生しました
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: 新規ユーザー登録 (SignUp)
+      summary: 新規ユーザー登録 (Sign Up)
       tags:
-      - Auth
+      - 認証 (Auth)
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: ログイン中のユーザーの、現在アクティブな（調理中または調理完了）注文履歴を取得します。このAPIは常に'cooking'と'completed'ステータスの注文のみを返します。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: アクティブな注文履歴のリスト
+          schema:
+            items:
+              $ref: '#/definitions/models.OrderListResponse'
+            type: array
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: アクティブな注文履歴の取得 (Get Active Order List)
+      tags:
+      - 注文 (Order)
+  /orders/{order_id}/status:
+    get:
+      consumes:
+      - application/json
+      description: 特定の注文IDの現在のステータスと待ち状況をリアルタイムで取得します。
+      parameters:
+      - description: 注文ID (Order ID)
+        in: path
+        name: order_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 現在の注文ステータス
+          schema:
+            $ref: '#/definitions/models.OrderStatusResponse'
+        "400":
+          description: 注文IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: 注文が見つからないか、アクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 注文ステータスの取得 (Get Order Status)
+      tags:
+      - 注文 (Order)
   /shops/{shop_id}/guest-orders:
     post:
       consumes:
       - application/json
-      description: ゲストユーザー（未ログイン）が新しい注文を作成します。認証は不要です。
+      description: 未ログインのゲストユーザーとして新しい注文を作成します。認証は不要です。
       parameters:
       - description: 店舗ID (Shop ID)
         in: path
         name: shop_id
         required: true
         type: integer
-      - description: 注文する商品の情報 (Product ID and quantity)
+      - description: 注文内容 (Order details)
         in: body
-        name: body
+        name: order
         required: true
         schema:
           $ref: '#/definitions/models.CreateOrderRequest'
@@ -176,26 +489,38 @@ paths:
       - application/json
       responses:
         "201":
-          description: 注文成功時のレスポンス" swaggertype:"object
+          description: 作成された注文IDとゲスト用トークン
           schema:
             $ref: '#/definitions/models.CreateOrderResponse'
-      summary: ゲスト向け注文作成 (Create Order for Guest)
+        "400":
+          description: リクエストボディまたは店舗IDが不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: ゲストの注文作成 (Create Order - Guest)
       tags:
-      - Order
+      - 注文 (Order)
   /shops/{shop_id}/orders:
     post:
       consumes:
       - application/json
-      description: 認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。
+      description: 認証済みのユーザーとして新しい注文を作成します。リクエストには有効なBearerトークンが必要です。
       parameters:
       - description: 店舗ID (Shop ID)
         in: path
         name: shop_id
         required: true
         type: integer
-      - description: 注文する商品の情報 (Product ID and quantity)
+      - description: 注文内容 (Order details)
         in: body
-        name: body
+        name: order
         required: true
         schema:
           $ref: '#/definitions/models.CreateOrderRequest'
@@ -203,17 +528,35 @@ paths:
       - application/json
       responses:
         "201":
-          description: 注文成功時のレスポンス
+          description: 作成された注文ID
           schema:
             $ref: '#/definitions/models.AuthenticatedOrderResponse'
+        "400":
+          description: リクエストボディまたは店舗IDが不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
-      summary: 認証ユーザー向け注文作成 (Create Order for Authenticated User)
+      summary: 認証ユーザーの注文作成 (Create Order - Authenticated)
       tags:
-      - Order
+      - 注文 (Order)
 securityDefinitions:
   BearerAuth:
-    description: '"認証トークンを''Bearer ''に続けて入力してください。例: Bearer {JWTトークン}"'
+    description: '認証トークンを''Bearer ''に続けて入力してください。 (例: Bearer {JWTトークン})'
     in: header
     name: Authorization
     type: apiKey

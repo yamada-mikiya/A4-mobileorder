@@ -1,15 +1,15 @@
 package repositories
 
 import (
-	"database/sql"
+	"context"
 	"errors"
+	"fmt"
 
-	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/jmoiron/sqlx"
 )
 
 type ShopRepository interface {
-	GetShopByAdminID(adminID int) (models.Shop, error)
+	FindShopIDByAdminID(ctx context.Context, userID int) (int, error)
 }
 
 type shopRepository struct {
@@ -17,32 +17,27 @@ type shopRepository struct {
 }
 
 func NewShopRepository(db *sqlx.DB) ShopRepository {
-	return &shopRepository{db: db}
+	return &shopRepository{db}
 }
 
-func (r *shopRepository) GetShopByAdminID(adminID int) (models.Shop, error) {
-	shop := models.Shop{}
-
-	row := r.db.QueryRow(
-		`SELECT shop_id, name, description, location, is_open, admin_user_id
-         FROM shops
-         WHERE admin_user_id = $1`,
-		adminID,
-	)
-
-	if err := row.Scan(
-		&shop.ShopID,
-		&shop.Name,
-		&shop.Description,
-		&shop.Location,
-		&shop.IsOpen,
-		&shop.AdminUserID,
-	); err != nil {
-		if err == sql.ErrNoRows {
-			return models.Shop{}, errors.New("shop not found for the given admin user")
-		}
-		return models.Shop{}, err
+func (r *shopRepository) FindShopIDByAdminID(ctx context.Context, userID int) (int, error) {
+	var shopIDs []int
+	query := `
+		SELECT s.shop_id FROM shops s
+		INNER JOIN shop_staff ss ON s.shop_id = ss.shop_id
+		WHERE ss.user_id = $1
+	`
+	err := r.db.SelectContext(ctx, &shopIDs, query, userID)
+	if err != nil {
+		return 0, err
 	}
 
-	return shop, nil
+	switch len(shopIDs) {
+	case 0:
+		return 0, errors.New("shop not found for the given admin user")
+	case 1:
+		return shopIDs[0], nil
+	default:
+		return 0, fmt.Errorf("data inconsistency: user_id %d is associated with multiple shops", userID)
+	}
 }

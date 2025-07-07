@@ -1,11 +1,11 @@
 package models
 
 type CreateOrderRequest struct {
-	Products []OrderProductRequest `json:"products"`
+	Items []OrderItemRequest `json:"items"`
 }
-type OrderProductRequest struct {
-	ProductID int `json:"product_id" example:"1"`
-	Quantity  int `json:"quantity" example:"2"`
+type OrderItemRequest struct {
+	ItemID   int `json:"item_id" example:"1"`
+	Quantity int `json:"quantity" example:"2"`
 }
 type AuthenticatedOrderResponse struct {
 	OrderID uint `json:"order_id"`

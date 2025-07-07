@@ -15,9 +15,14 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "既存のユーザーを認証し、新しい認証トークンを発行します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。",
+        "/admin/orders/{order_id}/delete": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理者が担当する店舗の注文を削除します。",
                 "consumes": [
                     "application/json"
                 ],
@@ -25,13 +30,260 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Auth"
+                    "管理者 (Admin)"
                 ],
-                "summary": "ユーザー認証 (LogIn)",
+                "summary": "注文の削除 (Admin)",
                 "parameters": [
                     {
-                        "description": "ユーザーのメールアドレスと、任意でゲスト注文トークン",
-                        "name": "body",
+                        "type": "integer",
+                        "description": "削除する注文のID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功メッセージ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "注文IDの形式が不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "この注文へのアクセス権がありません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "指定された注文が見つかりません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/orders/{order_id}/status": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理者が担当する店舗の注文ステータスを一段階進めます (調理中→調理完了→お渡し済み)。リクエストボディは不要です。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理者 (Admin)"
+                ],
+                "summary": "注文ステータスの更新 (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ステータスを更新する注文のID",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功メッセージ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "注文IDの形式が不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "この注文へのアクセス権がありません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "指定された注文が見つかりません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "これ以上ステータスを進められない場合に返されます (例: 'handed'の注文)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/{shop_id}/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理者 (Admin)"
+                ],
+                "summary": "管理店舗の注文一覧を取得 (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "注文一覧を取得する店舗のID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "調理中と調理完了に分かれた注文リスト",
+                        "schema": {
+                            "$ref": "#/definitions/models.AdminOrderPageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "店舗IDの形式が不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "この店舗へのアクセス権がありません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "既存のユーザーを認証し、新しい認証トークンを発行します。\nリクエストにゲスト注文トークンを含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "認証 (Auth)"
+                ],
+                "summary": "ログイン (Log In)",
+                "parameters": [
+                    {
+                        "description": "ユーザー情報 (メールアドレスと、任意でゲスト注文トークン)",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -41,13 +293,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "認証成功時のレスポンス",
+                        "description": "認証成功。新しい認証トークンを返します。",
                         "schema": {
                             "$ref": "#/definitions/models.LoginResponse"
                         }
                     },
                     "400": {
-                        "description": "リクエストが不正な場合",
+                        "description": "リクエストボディが不正です",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -56,7 +308,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "認証に失敗した場合",
+                        "description": "認証に失敗しました (メールアドレスが存在しない等)",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -65,7 +317,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "サーバー内部エラー",
+                        "description": "サーバー内部でエラーが発生しました",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -78,7 +330,7 @@ const docTemplate = `{
         },
         "/auth/signup": {
             "post": {
-                "description": "新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。ゲスト注文トークンをリクエストに含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。",
+                "description": "新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。\nリクエストにゲスト注文トークンを含めることで、既存のゲスト注文をアカウントに紐付けることも可能です。",
                 "consumes": [
                     "application/json"
                 ],
@@ -86,13 +338,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Auth"
+                    "認証 (Auth)"
                 ],
-                "summary": "新規ユーザー登録 (SignUp)",
+                "summary": "新規ユーザー登録 (Sign Up)",
                 "parameters": [
                     {
-                        "description": "ユーザーのメールアドレスと、任意でゲスト注文トークン",
-                        "name": "body",
+                        "description": "ユーザー情報 (メールアドレスと、任意でゲスト注文トークン)",
+                        "name": "payload",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -102,13 +354,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "登録成功時のレスポンス",
+                        "description": "登録成功。ユーザー情報と認証トークンを返します。",
                         "schema": {
                             "$ref": "#/definitions/models.SignUpResponse"
                         }
                     },
                     "400": {
-                        "description": "リクエストが不正な場合",
+                        "description": "リクエストボディが不正です",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -117,7 +369,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "メールアドレスが既に使用されている場合",
+                        "description": "指定されたメールアドレスは既に使用されています",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -126,7 +378,129 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "サーバー内部エラー",
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ログイン中のユーザーの、現在アクティブな（調理中または調理完了）注文履歴を取得します。このAPIは常に'cooking'と'completed'ステータスの注文のみを返します。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "注文 (Order)"
+                ],
+                "summary": "アクティブな注文履歴の取得 (Get Active Order List)",
+                "responses": {
+                    "200": {
+                        "description": "アクティブな注文履歴のリスト",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.OrderListResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{order_id}/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "特定の注文IDの現在のステータスと待ち状況をリアルタイムで取得します。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "注文 (Order)"
+                ],
+                "summary": "注文ステータスの取得 (Get Order Status)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "注文ID (Order ID)",
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "現在の注文ステータス",
+                        "schema": {
+                            "$ref": "#/definitions/models.OrderStatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "注文IDの形式が不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "注文が見つからないか、アクセス権がありません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -139,7 +513,7 @@ const docTemplate = `{
         },
         "/shops/{shop_id}/guest-orders": {
             "post": {
-                "description": "ゲストユーザー（未ログイン）が新しい注文を作成します。認証は不要です。",
+                "description": "未ログインのゲストユーザーとして新しい注文を作成します。認証は不要です。",
                 "consumes": [
                     "application/json"
                 ],
@@ -147,9 +521,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Order"
+                    "注文 (Order)"
                 ],
-                "summary": "ゲスト向け注文作成 (Create Order for Guest)",
+                "summary": "ゲストの注文作成 (Create Order - Guest)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -159,8 +533,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "注文する商品の情報 (Product ID and quantity)",
-                        "name": "body",
+                        "description": "注文内容 (Order details)",
+                        "name": "order",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -170,9 +544,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "注文成功時のレスポンス\" swaggertype:\"object",
+                        "description": "作成された注文IDとゲスト用トークン",
                         "schema": {
                             "$ref": "#/definitions/models.CreateOrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "リクエストボディまたは店舗IDが不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -185,7 +577,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。",
+                "description": "認証済みのユーザーとして新しい注文を作成します。リクエストには有効なBearerトークンが必要です。",
                 "consumes": [
                     "application/json"
                 ],
@@ -193,9 +585,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Order"
+                    "注文 (Order)"
                 ],
-                "summary": "認証ユーザー向け注文作成 (Create Order for Authenticated User)",
+                "summary": "認証ユーザーの注文作成 (Create Order - Authenticated)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -205,8 +597,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "注文する商品の情報 (Product ID and quantity)",
-                        "name": "body",
+                        "description": "注文内容 (Order details)",
+                        "name": "order",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -216,9 +608,36 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "注文成功時のレスポンス",
+                        "description": "作成された注文ID",
                         "schema": {
                             "$ref": "#/definitions/models.AuthenticatedOrderResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "リクエストボディまたは店舗IDが不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -226,6 +645,51 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.AdminOrderPageResponse": {
+            "type": "object",
+            "properties": {
+                "completed_orders": {
+                    "description": "「調理完了」の注文リスト",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.AdminOrderResponse"
+                    }
+                },
+                "cooking_orders": {
+                    "description": "「調理中」の注文リスト",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.AdminOrderResponse"
+                    }
+                }
+            }
+        },
+        "models.AdminOrderResponse": {
+            "type": "object",
+            "properties": {
+                "customer_email": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ItemDetail"
+                    }
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
         "models.AuthenticateRequest": {
             "type": "object",
             "properties": {
@@ -250,10 +714,10 @@ const docTemplate = `{
         "models.CreateOrderRequest": {
             "type": "object",
             "properties": {
-                "products": {
+                "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.OrderProductRequest"
+                        "$ref": "#/definitions/models.OrderItemRequest"
                     }
                 }
             }
@@ -275,6 +739,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ItemDetail": {
+            "type": "object",
+            "properties": {
+                "item_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.LoginResponse": {
             "type": "object",
             "properties": {
@@ -284,16 +759,60 @@ const docTemplate = `{
                 }
             }
         },
-        "models.OrderProductRequest": {
+        "models.OrderItemRequest": {
             "type": "object",
             "properties": {
-                "product_id": {
+                "item_id": {
                     "type": "integer",
                     "example": 1
                 },
                 "quantity": {
                     "type": "integer",
                     "example": 2
+                }
+            }
+        },
+        "models.OrderListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ItemDetail"
+                    }
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "integer"
+                },
+                "shop_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"cooking\" or \"completed\"",
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "waiting_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.OrderStatusResponse": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "waiting_count": {
+                    "type": "integer"
                 }
             }
         },
@@ -328,7 +847,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "\"認証トークンを'Bearer 'に続けて入力してください。例: Bearer {JWTトークン}\"",
+            "description": "認証トークンを'Bearer 'に続けて入力してください。 (例: Bearer {JWTトークン})",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
@@ -342,8 +861,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "mobile_order",
-	Description:      "This is mobileorder API",
+	Title:            "Mobile Order API",
+	Description:      "モバイルオーダー（事前注文・決済）システムのためのAPI仕様書です。\nユーザー認証、商品情報の取得、注文処理などの機能を提供します。",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

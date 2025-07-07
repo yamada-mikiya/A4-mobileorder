@@ -19,7 +19,7 @@ docker compose down -v
 
 ### 3.データベースに接続してテーブル情報を見たいとき
 ```bash
-docker compose exec db psql -U user -d dbname
+docker compose exec db psql -U myuser -d mydb
 #userとdbnameは自分の.envファイルの設定を見て書き換えてください。.envファイルの例は.env.exampleにあります。
 ```
 ### extra.1 swagger

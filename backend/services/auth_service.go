@@ -16,7 +16,7 @@ import (
 
 type AuthServicer interface {
 	SignUp(ctx context.Context, req models.AuthenticateRequest) (models.UserResponse, string, error)
-	createToken(user models.User) (string, error)
+	createToken(ctx context.Context, user models.User) (string, error)
 	LogIn(ctx context.Context, req models.AuthenticateRequest) (string, error)
 }
 
@@ -47,7 +47,7 @@ func (s *authService) SignUp(ctx context.Context, req models.AuthenticateRequest
 		}
 	}
 
-	tokenString, err := s.createToken(*newUser)
+	tokenString, err := s.createToken(ctx, *newUser)
 	if err != nil {
 		return models.UserResponse{}, "", fmt.Errorf("user created, but failed to create token: %w", err)
 	}
@@ -77,21 +77,20 @@ func (s *authService) LogIn(ctx context.Context, req models.AuthenticateRequest)
 		}
 	}
 
-	return s.createToken(storedUser)
+	return s.createToken(ctx, storedUser)
 }
 
-func (s *authService) createToken(user models.User) (string, error) {
+func (s *authService) createToken(ctx context.Context, user models.User) (string, error) {
 	claims := &models.JwtCustomClaims{
 		UserID: user.UserID,
 		Role:   user.Role,
 	}
 
 	if user.Role == models.AdminRole {
-		shop, err := s.shr.GetShopByAdminID(user.UserID)
+		shopID, err := s.shr.FindShopIDByAdminID(ctx, user.UserID)
 		if err != nil {
 			return "", fmt.Errorf("admin user found but failed to get shop info: %w", err)
 		}
-		shopID := int(shop.ShopID)
 		claims.ShopID = &shopID
 	}
 

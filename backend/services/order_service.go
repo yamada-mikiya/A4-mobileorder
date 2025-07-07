@@ -12,21 +12,20 @@ import (
 )
 
 type OrderServicer interface {
-	CreateOrder(ctx context.Context, shopID int, reqProd []models.OrderProductRequest) (*models.Order, error)
-	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error)
-	GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error)
+	CreateOrder(ctx context.Context, shopID int, reqItem []models.OrderItemRequest) (*models.Order, error)
+	CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (*models.Order, error)
+	GetUserOrders(ctx context.Context, userID int) ([]models.OrderListResponse, error)
 	GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error)
 }
 
 type orderService struct {
 	orr repositories.OrderRepository
-	prr repositories.ProductRepository
+	prr repositories.ItemRepository
 }
 
-func NewOrderService(orr repositories.OrderRepository, prr repositories.ProductRepository) OrderServicer {
+func NewOrderService(orr repositories.OrderRepository, prr repositories.ItemRepository) OrderServicer {
 	return &orderService{orr, prr}
 }
-
 
 func generateguestToken() (string, error) {
 	token, err := uuid.NewRandom()
@@ -37,9 +36,9 @@ func generateguestToken() (string, error) {
 	return token.String(), nil
 }
 
-func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []models.OrderProductRequest) (*models.Order, error) {
+func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
 
-	totalAmount, orderProductsToCreate, err := s.validateAndPrepareOrderProducts(ctx, shopID, products)
+	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, shopID, items)
 	if err != nil {
 		return nil, fmt.Errorf("fail to calculate total amount: %v", err)
 	}
@@ -56,15 +55,15 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, products []m
 		GuestOrderToken: sql.NullString{String: guestToken, Valid: true},
 	}
 
-	if err := s.orr.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
+	if err := s.orr.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
 		return nil, err
 	}
 
 	return order, nil
 }
 
-func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, products []models.OrderProductRequest) (*models.Order, error) {
-	totalAmount, orderProductsToCreate, err := s.validateAndPrepareOrderProducts(ctx, shopID, products)
+func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
+	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, shopID, items)
 	if err != nil {
 		return nil, err
 	}
@@ -76,53 +75,103 @@ func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int,
 		Status:      models.Cooking,
 	}
 
-	if err := s.orr.CreateOrder(ctx, order, orderProductsToCreate); err != nil {
+	if err := s.orr.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
 		return nil, err
 	}
 
 	return order, nil
 }
 
-// 商品が店のものとあっているかの検証と合計金額とorder_productテーブルに入れるためのデータを作るヘルパーメソッド
-func (s *orderService) validateAndPrepareOrderProducts(ctx context.Context, shopID int, products []models.OrderProductRequest) (float64, []models.OrderProduct, error) {
+// 商品が店のものとあっているかの検証と合計金額とorder_itemテーブルに入れるためのデータを作るヘルパーメソッド
+func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, shopID int, items []models.OrderItemRequest) (float64, []models.OrderItem, error) {
 
-	if len(products) == 0 {
-		return 0, nil, errors.New("cannot create order with no products")
+	if len(items) == 0 {
+		return 0, nil, errors.New("cannot create order with no items")
 	}
 
-	productIDs := make([]int, len(products))
-	for i, product := range products {
-		productIDs[i] = product.ProductID
+	itemIDs := make([]int, len(items))
+	for i, item := range items {
+		itemIDs[i] = item.ItemID
 	}
 
-	validProductMap, err := s.prr.ValidateAndGetProductsForShop(ctx, shopID, productIDs)
+	validItemMap, err := s.prr.ValidateAndGetItemsForShop(ctx, shopID, itemIDs)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	var totalAmount float64 = 0
-	orderProductsToCreate := make([]models.OrderProduct, len(products))
-	for i, product := range products {
-		productModel := validProductMap[product.ProductID]
-		priceAtOrder := productModel.Price
-		totalAmount += priceAtOrder * float64(product.Quantity)
+	orderItemsToCreate := make([]models.OrderItem, len(items))
+	for i, item := range items {
+		itemModel := validItemMap[item.ItemID]
+		priceAtOrder := itemModel.Price
+		totalAmount += priceAtOrder * float64(item.Quantity)
 
-		orderProductsToCreate[i] = models.OrderProduct{
-			ProductID:    product.ProductID,
-			Quantity:     product.Quantity,
+		orderItemsToCreate[i] = models.OrderItem{
+			ItemID:       item.ItemID,
+			Quantity:     item.Quantity,
 			PriceAtOrder: priceAtOrder,
 		}
 	}
-	return totalAmount, orderProductsToCreate, nil
+	return totalAmount, orderItemsToCreate, nil
 }
 
 // GetUserOrders は、注文一覧ページのためのやつ
-func (s *orderService) GetUserOrders(ctx context.Context, userID int, statusParams []string) ([]models.OrderListResponse, error) {
-	
-	return []models.OrderListResponse{}, nil
+func (s *orderService) GetUserOrders(ctx context.Context, userID int) ([]models.OrderListResponse, error) {
+
+	orders, err := s.orr.FindActiveUserOrders(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(orders) == 0 {
+		return []models.OrderListResponse{}, nil
+	}
+
+	orderIDs := make([]int, len(orders))
+	for i, o := range orders {
+		orderIDs[i] = o.OrderID
+	}
+
+	orderItemsMap, err := s.orr.FindItemsByOrderIDs(ctx, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	resDTOs := make([]models.OrderListResponse, len(orders))
+	for i, repoOrder := range orders {
+		resDTOs[i] = models.OrderListResponse{
+			OrderID:      repoOrder.OrderID,
+			ShopName:     repoOrder.ShopName,
+			Location:     repoOrder.Location,
+			OrderDate:    repoOrder.OrderDate,
+			TotalAmount:  repoOrder.TotalAmount,
+			Status:       repoOrder.Status.String(),
+			WaitingCount: repoOrder.WaitingCount,
+			Items:        orderItemsMap[repoOrder.OrderID],
+		}
+	}
+
+	return resDTOs, nil
 }
 
 // GetOrderStatus は、単一注文のステータスと待ち人数を取得
 func (s *orderService) GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error) {
-	return nil, nil
+
+	order, err := s.orr.FindOrderByIDAndUser(ctx, orderID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var waitingCount int
+	if order.Status == models.Cooking {
+		waitingCount, err = s.orr.CountWaitingOrders(ctx, order.ShopID, order.OrderDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &models.OrderStatusResponse{
+		OrderID:      order.OrderID,
+		Status:       order.Status.String(),
+		WaitingCount: waitingCount,
+	}, nil
 }

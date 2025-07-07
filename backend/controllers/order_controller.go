@@ -26,25 +26,23 @@ func NewOrderController(s services.OrderServicer) OrderController {
 	return &orderController{s}
 }
 
-
-
 // CreateAuthenticatedOrderHandler は認証済みユーザーの注文を作成します。
-// @Summary 認証ユーザー向け注文作成 (Create Order for Authenticated User)
-// @Description 認証済みユーザーが新しい注文を作成します。Authorizationヘッダーに有効なBearerトークンが必須です。
-// @Tags Order
-// @Accept json
-// @Produce json
-// @Param shop_id path int true "店舗ID (Shop ID)"
-// @Param body body models.CreateOrderRequest true "注文する商品の情報 (Product ID and quantity)"
-// @Security BearerAuth
-// @Success 201 {object} models.AuthenticatedOrderResponse "注文成功時のレスポンス"
-// @Failure 400 {object} map[string]string "リクエストが不正な場合のエラー"
-// @Failure 401 {object} map[string]string "認証に失敗した場合のエラー"
-// @Failure 500 {object} map[string]string "サーバー内部エラー"
-// @Router /shops/{shop_id}/orders [post]
+// @Summary      認証ユーザーの注文作成 (Create Order - Authenticated)
+// @Description  認証済みのユーザーとして新しい注文を作成します。リクエストには有効なBearerトークンが必要です。
+// @Tags         注文 (Order)
+// @Accept       json
+// @Produce      json
+// @Param        shop_id path int true "店舗ID (Shop ID)"
+// @Param        order body models.CreateOrderRequest true "注文内容 (Order details)"
+// @Security     BearerAuth
+// @Success      201 {object} models.AuthenticatedOrderResponse "作成された注文ID"
+// @Failure      400 {object} map[string]string "リクエストボディまたは店舗IDが不正です"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /shops/{shop_id}/orders [post]
 func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) error {
-	reqProd := models.CreateOrderRequest{}
-	if err := ctx.Bind(&reqProd); err != nil {
+	reqItem := models.CreateOrderRequest{}
+	if err := ctx.Bind(&reqItem); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
@@ -54,13 +52,16 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
 	}
 
-	userToken := ctx.Get("user").(*jwt.Token)
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token context"})
+	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
 	log.Printf("Authenticated user (ID: %d) order flow", userID)
 
-	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqProd.Products)
+	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqItem.Items)
 	if err != nil {
 		log.Printf("Error creating authenticated order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
@@ -74,20 +75,20 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 }
 
 // CreateGuestOrderHandler はゲストユーザーの注文を作成します。
-// @Summary ゲスト向け注文作成 (Create Order for Guest)
-// @Description ゲストユーザー（未ログイン）が新しい注文を作成します。認証は不要です。
-// @Tags Order
-// @Accept json
-// @Produce json
-// @Param shop_id path int true "店舗ID (Shop ID)"
-// @Param body body models.CreateOrderRequest true "注文する商品の情報 (Product ID and quantity)"
-// @Success 201 {object} models.CreateOrderResponse "注文成功時のレスポンス"
-// @Failure 400 {object} map[string]string "リクエストが不正な場合のエラー"
-// @Failure 500 {object} map[string]string "サーバー内部エラー"
-// @Router /shops/{shop_id}/guest-orders [post]
+// @Summary      ゲストの注文作成 (Create Order - Guest)
+// @Description  未ログインのゲストユーザーとして新しい注文を作成します。認証は不要です。
+// @Tags         注文 (Order)
+// @Accept       json
+// @Produce      json
+// @Param        shop_id path int true "店舗ID (Shop ID)"
+// @Param        order body models.CreateOrderRequest true "注文内容 (Order details)"
+// @Success      201 {object} models.CreateOrderResponse "作成された注文IDとゲスト用トークン"
+// @Failure      400 {object} map[string]string "リクエストボディまたは店舗IDが不正です"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /shops/{shop_id}/guest-orders [post]
 func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
-	reqProd := models.CreateOrderRequest{}
-	if err := ctx.Bind(&reqProd); err != nil {
+	reqItem := models.CreateOrderRequest{}
+	if err := ctx.Bind(&reqItem); err != nil {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
@@ -99,7 +100,7 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 
 	log.Println("Guest user order flow")
 
-	createdOrder, err := c.s.CreateOrder(ctx.Request().Context(), shopID, reqProd.Products)
+	createdOrder, err := c.s.CreateOrder(ctx.Request().Context(), shopID, reqItem.Items)
 	if err != nil {
 		log.Printf("Error creating guest order: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "fail to create order"})
@@ -114,18 +115,27 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusCreated, resOrder)
 }
 
-// ユーザーの注文詳細を取得
+// GetOrderListHandler は、ユーザーのアクティブな注文履歴を取得します。
+// @Summary      アクティブな注文履歴の取得 (Get Active Order List)
+// @Description  ログイン中のユーザーの、現在アクティブな（調理中または調理完了）注文履歴を取得します。このAPIは常に'cooking'と'completed'ステータスの注文のみを返します。
+// @Tags         注文 (Order)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} models.OrderListResponse "アクティブな注文履歴のリスト"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /orders [get]
 func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
-	statusParams := ctx.QueryParams()["status"]
-	if len(statusParams) == 0 {
-		return ctx.JSON(http.StatusBadRequest, "at least one status query parameter is required")
-	}
 
-	userToken := ctx.Get("user").(jwt.Token)
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
-	orderList, err := c.s.GetUserOrders(ctx.Request().Context(), userID, statusParams)
+	orderList, err := c.s.GetUserOrders(ctx.Request().Context(), userID)
 	if err != nil {
 		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order list"})
 	}
@@ -133,7 +143,20 @@ func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, orderList)
 }
 
-// 注文のステータスを取得
+// GetOrderStatusHandler は特定の注文ステータスを取得します。
+// @Summary      注文ステータスの取得 (Get Order Status)
+// @Description  特定の注文IDの現在のステータスと待ち状況をリアルタイムで取得します。
+// @Tags         注文 (Order)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        order_id path int true "注文ID (Order ID)"
+// @Success      200 {object} models.OrderStatusResponse "現在の注文ステータス"
+// @Failure      400 {object} map[string]string "注文IDの形式が不正です"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      404 {object} map[string]string "注文が見つからないか、アクセス権がありません"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /orders/{order_id}/status [get]
 func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 	orderIDStr := ctx.Param("order_id")
 	orderID, err := strconv.Atoi(orderIDStr)
@@ -141,7 +164,10 @@ func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, "invalid order_id")
 	}
 
-	userToken := ctx.Get("user").(*jwt.Token)
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	}
 	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 

@@ -23,18 +23,19 @@ type SignUpResponse struct {
 
 // 注文一覧レスポンス
 type OrderListResponse struct {
-	OrderID      int         `json:"order_id"`
-	ShopName     string      `json:"shop_name"`
-	OrderDate    time.Time   `json:"order_date"`
-	TotalAmount  float64     `json:"total_amount"`
-	Status       string      `json:"status"` // "cooking" or "completed"
-	WaitingCount int         `json:"waiting_count"`
-	Items        []OrderItem `json:"items"`
+	OrderID      int          `json:"order_id"`
+	ShopName     string       `json:"shop_name"`
+	Location     string       `json:"location"`
+	OrderDate    time.Time    `json:"order_date"`
+	TotalAmount  float64      `json:"total_amount"`
+	Status       string       `json:"status"` // "cooking" or "completed"
+	WaitingCount int          `json:"waiting_count"`
+	Items        []ItemDetail `json:"items"`
 }
 
-type OrderItem struct {
-	ProductName string `json:"product_name"`
-	Quantity    int    `json:"quantity"`
+type ItemDetail struct {
+	ItemName string `json:"item_name"`
+	Quantity int    `json:"quantity"`
 }
 
 // 注文のステータスと待ち人数表示レスポンス
@@ -48,7 +49,21 @@ type LoginResponse struct {
 	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
 }
 
-//いずみん
-type ProductListResponse struct {
+// いずみん
+type ItemListResponse struct {
 	a int
+}
+
+type AdminOrderResponse struct {
+	OrderID       int          `json:"order_id"`
+	CustomerEmail *string      `json:"customer_email"`
+	OrderDate     time.Time    `json:"order_date"`
+	TotalAmount   float64      `json:"total_amount"`
+	Status        string       `json:"status"`
+	Items         []ItemDetail `json:"items"`
+}
+
+type AdminOrderPageResponse struct {
+	CookingOrders   []AdminOrderResponse `json:"cooking_orders"`   // 「調理中」の注文リスト
+	CompletedOrders []AdminOrderResponse `json:"completed_orders"` // 「調理完了」の注文リスト
 }
