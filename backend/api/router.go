@@ -56,7 +56,8 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 	adminGroup := e.Group("/admin")
 	adminGroup.Use(jwtMiddleware, middlewares.AdminRequired)
 	{
-		adminGroup.GET("/shops/:shop_id/orders", adc.GetAdminOrderListHandler)              // 管理者の注文一覧（クエリで絞り込み）
+		adminGroup.GET("/shops/:shop_id/orders/cooking", adc.GetCookingOrdersHandler)
+		adminGroup.GET("/shops/:shop_id/orders/completed", adc.GetCompletedOrdersHandler) 
 		adminGroup.PATCH("/orders/:order_id/status", adc.UpdateOrderStatusHandler)          // 管理者が注文ステータスを更新
 		adminGroup.PATCH("/items/:item_id/availability", adc.UpdateItemAvailabilityHandler) // 商品の在庫状態更新　←いずみん
 		adminGroup.DELETE("/orders/:order_id/delete", adc.DeleteOrderHandler)               //管理者画面で注文を削除

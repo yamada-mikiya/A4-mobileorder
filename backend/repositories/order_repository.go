@@ -19,7 +19,7 @@ type OrderRepository interface {
 	FindItemsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error)
 	FindOrderByIDAndUser(ctx context.Context, orderID int, userID int) (*models.Order, error)
 	CountWaitingOrders(ctx context.Context, shopID int, orderDate time.Time) (int, error)
-	FindActiveShopOrders(ctx context.Context, shopID int) ([]AdminOrderDBResult, error)
+	FindShopOrdersByStatuses(ctx context.Context, shopID int, statuses []models.OrderStatus) ([]AdminOrderDBResult, error)
 	FindOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) (*models.Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID int, shopID int, newStatus models.OrderStatus) error
 	DeleteOrderByIDAndShopID(ctx context.Context, orderID int, shopID int) error
@@ -201,7 +201,7 @@ func (r *orderRepository) CountWaitingOrders(ctx context.Context, shopID int, or
 	return count, err
 }
 
-//管理者が注文取得
+// 管理者が注文取得
 type AdminOrderDBResult struct {
 	OrderID       int                `db:"order_id"`
 	CustomerEmail sql.NullString     `db:"email"`
@@ -209,8 +209,12 @@ type AdminOrderDBResult struct {
 	TotalAmount   float64            `db:"total_amount"`
 	Status        models.OrderStatus `db:"status"`
 }
-func (r *orderRepository) FindActiveShopOrders(ctx context.Context, shopID int) ([]AdminOrderDBResult, error) {
-	query := `
+
+func (r *orderRepository) FindShopOrdersByStatuses(ctx context.Context, shopID int, statuses []models.OrderStatus) ([]AdminOrderDBResult, error) {
+	if len(statuses) == 0 {
+		return []AdminOrderDBResult{}, nil
+	}
+	query, args, err := sqlx.In(`
 		SELECT
 			o.order_id, u.email, o.order_date, o.total_amount, o.status
 		FROM
@@ -218,13 +222,18 @@ func (r *orderRepository) FindActiveShopOrders(ctx context.Context, shopID int) 
 		LEFT JOIN
 			users u ON o.user_id = u.user_id
 		WHERE
-			o.shop_id = $1 AND o.status IN ($2, $3)
+			o.shop_id = ? AND o.status IN (?)
 		ORDER BY
 			o.order_date ASC
-	`
+	`, shopID, statuses)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query for shop orders: %w", err)
+	}
+	query = r.db.Rebind(query)
+
 	var orders []AdminOrderDBResult
-	if err := r.db.SelectContext(ctx, &orders, query, shopID, models.Cooking, models.Completed); err != nil {
-		return nil, fmt.Errorf("failed to select active orders for shop: %w", err)
+	if err := r.db.SelectContext(ctx, &orders, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to select orders for shop: %w", err)
 	}
 	return orders, nil
 }

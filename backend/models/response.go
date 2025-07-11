@@ -62,8 +62,3 @@ type AdminOrderResponse struct {
 	Status        string       `json:"status"`
 	Items         []ItemDetail `json:"items"`
 }
-
-type AdminOrderPageResponse struct {
-	CookingOrders   []AdminOrderResponse `json:"cooking_orders"`   // 「調理中」の注文リスト
-	CompletedOrders []AdminOrderResponse `json:"completed_orders"` // 「調理完了」の注文リスト
-}
