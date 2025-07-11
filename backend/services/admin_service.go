@@ -29,17 +29,14 @@ func (s *adminService) GetCookingOrders(ctx context.Context, shopID int) ([]mode
 	if err != nil {
 		return nil, err
 	}
-	// 取得したDBデータを、APIレスポンス用のDTOに変換します。
 	return s.assembleAdminOrderResponses(ctx, dbOrders)
 }
 
 func (s *adminService) GetCompletedOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
-	// リポジトリを呼び出す際に、ステータスとしてCompletedのみを指定します。
 	dbOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Completed})
 	if err != nil {
 		return nil, err
 	}
-	// 取得したDBデータを、APIレスポンス用のDTOに変換します。
 	return s.assembleAdminOrderResponses(ctx, dbOrders)
 }
 
@@ -48,7 +45,6 @@ func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders
 		return []models.AdminOrderResponse{}, nil
 	}
 
-	// N+1問題を避けるため、全注文の商品リストを一度に取得します。
 	orderIDs := make([]int, len(dbOrders))
 	for i, o := range dbOrders {
 		orderIDs[i] = o.OrderID
@@ -58,7 +54,6 @@ func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders
 		return nil, err
 	}
 
-	// 最終的なレスポンスDTOに変換・組み立てを行います。
 	responses := make([]models.AdminOrderResponse, len(dbOrders))
 	for i, dbOrder := range dbOrders {
 		var emailPtr *string
