@@ -1,18 +1,5 @@
 basePath: /
 definitions:
-  models.AdminOrderPageResponse:
-    properties:
-      completed_orders:
-        description: 「調理完了」の注文リスト
-        items:
-          $ref: '#/definitions/models.AdminOrderResponse'
-        type: array
-      cooking_orders:
-        description: 「調理中」の注文リスト
-        items:
-          $ref: '#/definitions/models.AdminOrderResponse'
-        type: array
-    type: object
   models.AdminOrderResponse:
     properties:
       customer_email:
@@ -92,6 +79,8 @@ definitions:
         items:
           $ref: '#/definitions/models.ItemDetail'
         type: array
+      location:
+        type: string
       order_date:
         type: string
       order_id:
@@ -259,11 +248,11 @@ paths:
       summary: 注文ステータスの更新 (Admin)
       tags:
       - 管理者 (Admin)
-  /admin/shops/{shop_id}/orders:
+  /admin/shops/{shop_id}/orders/completed:
     get:
       consumes:
       - application/json
-      description: ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。
+      description: ログイン中の管理者が担当する店舗の、「調理完了」ステータスの注文を全て取得します。
       parameters:
       - description: 注文一覧を取得する店舗のID
         in: path
@@ -274,9 +263,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: 調理中と調理完了に分かれた注文リスト
+          description: 調理完了の注文リスト
           schema:
-            $ref: '#/definitions/models.AdminOrderPageResponse'
+            items:
+              $ref: '#/definitions/models.AdminOrderResponse'
+            type: array
         "400":
           description: 店舗IDの形式が不正です
           schema:
@@ -303,7 +294,56 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: 管理店舗の注文一覧を取得 (Admin)
+      summary: 「調理完了」の注文一覧を取得 (Admin)
+      tags:
+      - 管理者 (Admin)
+  /admin/shops/{shop_id}/orders/cooking:
+    get:
+      consumes:
+      - application/json
+      description: ログイン中の管理者が担当する店舗の、「調理中」ステータスの注文を全て取得します。
+      parameters:
+      - description: 注文一覧を取得する店舗のID
+        in: path
+        name: shop_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 調理中の注文リスト
+          schema:
+            items:
+              $ref: '#/definitions/models.AdminOrderResponse'
+            type: array
+        "400":
+          description: 店舗IDの形式が不正です
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: 認証に失敗しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: この店舗へのアクセス権がありません
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: サーバー内部でエラーが発生しました
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 「調理中」の注文一覧を取得 (Admin)
       tags:
       - 管理者 (Admin)
   /auth/login:

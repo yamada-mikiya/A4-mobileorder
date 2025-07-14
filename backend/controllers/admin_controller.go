@@ -13,7 +13,8 @@ import (
 )
 
 type AdminController interface {
-	GetAdminOrderListHandler(ctx echo.Context) error
+	GetCookingOrdersHandler(ctx echo.Context) error
+	GetCompletedOrdersHandler(ctx echo.Context) error
 	UpdateOrderStatusHandler(ctx echo.Context) error
 	UpdateItemAvailabilityHandler(ctx echo.Context) error
 	DeleteOrderHandler(ctx echo.Context) error
@@ -27,21 +28,21 @@ func NewAdminController(s services.AdminServicer) AdminController {
 	return &adminController{s}
 }
 
-// GetAdminOrderListHandler は、管理者が担当する店舗の注文一覧を取得します。
-// @Summary      管理店舗の注文一覧を取得 (Admin)
-// @Description  ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。
+// GetCookingOrdersHandler は、「調理中」の注文一覧を取得します。
+// @Summary      「調理中」の注文一覧を取得 (Admin)
+// @Description  ログイン中の管理者が担当する店舗の、「調理中」ステータスの注文を全て取得します。
 // @Tags         管理者 (Admin)
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @Param        shop_id path int true "注文一覧を取得する店舗のID"
-// @Success      200 {object} models.AdminOrderPageResponse "調理中と調理完了に分かれた注文リスト"
+// @Success      200 {array} models.AdminOrderResponse "調理中の注文リスト"
 // @Failure      400 {object} map[string]string "店舗IDの形式が不正です"
 // @Failure      401 {object} map[string]string "認証に失敗しました"
 // @Failure      403 {object} map[string]string "この店舗へのアクセス権がありません"
 // @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
-// @Router       /admin/shops/{shop_id}/orders [get]
-func (c *adminController) GetAdminOrderListHandler(ctx echo.Context) error {
+// @Router       /admin/shops/{shop_id}/orders/cooking [get]
+func (c *adminController) GetCookingOrdersHandler(ctx echo.Context) error {
 
 	targetShopIDStr := ctx.Param("shop_id")
 	targetShopID, err := strconv.Atoi(targetShopIDStr)
@@ -68,12 +69,61 @@ func (c *adminController) GetAdminOrderListHandler(ctx echo.Context) error {
 
 	log.Printf("Admin user (ID: %d) authorized to access orders for shop (ID: %d)", claims.UserID, targetShopID)
 
-	pageData, err := c.s.GetAdminOrderPageData(ctx.Request().Context(), targetShopID)
+	orderList, err := c.s.GetCookingOrders(ctx.Request().Context(), targetShopID)
 	if err != nil {
-		log.Printf("failed to get admin order page data: %v", err)
+		log.Printf("failed to get cooking orders: %v", err)
 		return ctx.JSON(http.StatusInternalServerError, "failed to get orders")
 	}
-	return ctx.JSON(http.StatusOK, pageData)
+	return ctx.JSON(http.StatusOK, orderList)
+}
+
+// GetCompletedOrdersHandler は、「調理完了」の注文一覧を取得します。
+// @Summary      「調理完了」の注文一覧を取得 (Admin)
+// @Description  ログイン中の管理者が担当する店舗の、「調理完了」ステータスの注文を全て取得します。
+// @Tags         管理者 (Admin)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        shop_id path int true "注文一覧を取得する店舗のID"
+// @Success      200 {array} models.AdminOrderResponse "調理完了の注文リスト"
+// @Failure      400 {object} map[string]string "店舗IDの形式が不正です"
+// @Failure      401 {object} map[string]string "認証に失敗しました"
+// @Failure      403 {object} map[string]string "この店舗へのアクセス権がありません"
+// @Failure      500 {object} map[string]string "サーバー内部でエラーが発生しました"
+// @Router       /admin/shops/{shop_id}/orders/completed [get]
+func (c *adminController) GetCompletedOrdersHandler(ctx echo.Context) error {
+
+	targetShopIDStr := ctx.Param("shop_id")
+	targetShopID, err := strconv.Atoi(targetShopIDStr)
+	if err != nil {
+		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop_id format in URL."})
+	}
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return ctx.JSON(http.StatusUnauthorized, "Invalid or missing token.")
+	}
+	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
+	if !ok {
+		return ctx.JSON(http.StatusInternalServerError, "Failed to parse custom claims.")
+	}
+
+	if claims.ShopID == nil {
+		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You are an admin but not associated with any shop."})
+	}
+	adminShopID := *claims.ShopID
+
+	if adminShopID != targetShopID {
+		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You do not have permission to access this shop's data."})
+	}
+
+	log.Printf("Admin user (ID: %d) authorized to access orders for shop (ID: %d)", claims.UserID, targetShopID)
+
+	orderList, err := c.s.GetCompletedOrders(ctx.Request().Context(), targetShopID)
+	if err != nil {
+		log.Printf("failed to get completed orders: %v", err)
+		return ctx.JSON(http.StatusInternalServerError, "failed to get orders")
+	}
+	return ctx.JSON(http.StatusOK, orderList)
 }
 
 // UpdateOrderStatusHandler は、注文のステータスを一段階進めます。
@@ -112,7 +162,7 @@ func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid order_id format."})
 	}
 
-	err = c.s.AdvanceOrderStatus(ctx.Request().Context(), adminShopID, targetOrderID)
+	err = c.s.UpdateOrderStatus(ctx.Request().Context(), adminShopID, targetOrderID)
 	if err != nil {
 
 		if err.Error() == "order not found or permission denied" {
