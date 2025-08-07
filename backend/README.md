@@ -1,5 +1,8 @@
 # 開発環境の構築
 ## バックエンド
+### 0. envファイルの作成
+.emvファイルを作る
+.env.exampleをコピーしたやつを.envファイルに移す。
 ### 1. データベースコンテナの起動
 ```bash
 cd backend
@@ -28,5 +31,5 @@ docker compose exec db psql -U myuser -d mydb
 swag init
 docker compose up --build
 #変更がなくて初めてswaggerを生成する場合はdocker compose up --buildで大丈夫です。
-#swaggerのURLはhttp://localhost
+#swaggerのURLはhttp://localhostをブラウザにぶち込む
 
