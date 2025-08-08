@@ -68,7 +68,13 @@ func (s *authService) LogIn(ctx context.Context, req models.AuthenticateRequest)
             return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
         }
     }
-    return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
+		if errors.As(err, &appErr) {
+
+			if appErr.ErrCode == apperrors.NoData {
+				return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
+			}
+		}
+		return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
 	}
 
 	if req.GuestOrderToken != "" {
