@@ -169,7 +169,7 @@ func (r *orderRepository) FindItemsByOrderIDs(ctx context.Context, orderIDs []in
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, apperrors.GetDataFailed.Wrap(err, "データベースクエリの構築に失敗しました。")
+		return nil, apperrors.GetDataFailed.Wrap(err, "データベースクエリの実行に失敗しました。")
 	}
 	defer rows.Close()
 	itemsMap := make(map[int][]models.ItemDetail)
