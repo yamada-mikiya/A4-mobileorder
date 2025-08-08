@@ -62,3 +62,7 @@ type AdminOrderResponse struct {
 	Status        string       `json:"status"`
 	Items         []ItemDetail `json:"items"`
 }
+
+type AuthenticatedOrderResponse struct {
+	OrderID uint `json:"order_id"`
+}

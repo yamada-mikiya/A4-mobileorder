@@ -3,12 +3,11 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/golang-jwt/jwt/v5"
@@ -31,17 +30,14 @@ func NewAuthService(usr repositories.UserRepository, shr repositories.ShopReposi
 }
 
 func (s *authService) SignUp(ctx context.Context, req models.AuthenticateRequest) (models.UserResponse, string, error) {
-	if !strings.Contains(req.Email, "@") {
-		return models.UserResponse{}, "", errors.New("invalid email format")
-	}
 
 	newUser := &models.User{Email: req.Email}
 	if err := s.usr.CreateUser(ctx, newUser); err != nil {
-		// "email already exists" エラーをキャッチ
 		return models.UserResponse{}, "", err
 	}
 
 	if req.GuestOrderToken != "" {
+		//GuestOrderTokenがあればユーザーと注文を結びつける
 		if err := s.orr.UpdateUserIDByGuestToken(ctx, req.GuestOrderToken, newUser.UserID); err != nil {
 			log.Printf("warning: failed to claim guest order for new user %d: %v", newUser.UserID, err)
 		}
@@ -49,7 +45,7 @@ func (s *authService) SignUp(ctx context.Context, req models.AuthenticateRequest
 
 	tokenString, err := s.createToken(ctx, *newUser)
 	if err != nil {
-		return models.UserResponse{}, "", fmt.Errorf("user created, but failed to create token: %w", err)
+		return models.UserResponse{}, "", err
 	}
 
 	resUser := models.UserResponse{
@@ -62,13 +58,17 @@ func (s *authService) SignUp(ctx context.Context, req models.AuthenticateRequest
 
 func (s *authService) LogIn(ctx context.Context, req models.AuthenticateRequest) (string, error) {
 
-	if !strings.Contains(req.Email, "@") {
-		return "", errors.New("invalid email format")
-	}
-
 	storedUser, err := s.usr.GetUserByEmail(ctx, req.Email)
 	if err != nil {
-		return "", err
+	var appErr *apperrors.AppError
+
+    if errors.As(err, &appErr) {
+
+        if appErr.ErrCode == apperrors.NoData {
+            return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
+        }
+    }
+    return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
 	}
 
 	if req.GuestOrderToken != "" {
@@ -89,7 +89,7 @@ func (s *authService) createToken(ctx context.Context, user models.User) (string
 	if user.Role == models.AdminRole {
 		shopID, err := s.shr.FindShopIDByAdminID(ctx, user.UserID)
 		if err != nil {
-			return "", fmt.Errorf("admin user found but failed to get shop info: %w", err)
+			return "", apperrors.Unknown.Wrap(err, "管理者情報の取得に失敗し、トークンを生成できませんでした。")
 		}
 		claims.ShopID = &shopID
 	}
@@ -103,7 +103,7 @@ func (s *authService) createToken(ctx context.Context, user models.User) (string
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
 	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
+		return "", apperrors.Unknown.Wrap(err, "トークンの署名に失敗しました。")
 	}
 
 	return tokenString, nil

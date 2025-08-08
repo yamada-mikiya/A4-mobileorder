@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/jmoiron/sqlx"
 )
@@ -36,7 +36,7 @@ func NewOrderRepository(db *sqlx.DB) OrderRepository {
 func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, items []models.OrderItem) (err error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return apperrors.InsertDataFailed.Wrap(err, "トランザクションの開始に失敗しました。")
 	}
 
 	defer func() {
@@ -46,6 +46,9 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 			}
 		} else {
 			err = tx.Commit()
+			if err != nil {
+				err = apperrors.InsertDataFailed.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
 		}
 	}()
 
@@ -67,19 +70,19 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 	).Scan(&order.OrderID, &order.CreatedAt, &order.UpdatedAt)
 
 	if err != nil {
-		return err
+		return apperrors.InsertDataFailed.Wrap(err, "注文の作成に失敗しました。")
 	}
 
 	//order_itemにinsert
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO order_item (order_id, item_id, quantity, price_at_order) VALUES ($1, $2, $3, $4)")
 	if err != nil {
-		return err
+		return apperrors.InsertDataFailed.Wrap(err, "注文商品登録の準備に失敗しました。")
 	}
 	defer stmt.Close()
 
 	for _, item := range items {
 		if _, err = stmt.ExecContext(ctx, order.OrderID, item.ItemID, item.Quantity, item.PriceAtOrder); err != nil {
-			return err
+			return apperrors.InsertDataFailed.Wrap(err, "注文商品の登録に失敗しました。")
 		}
 	}
 
@@ -90,14 +93,14 @@ func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestTok
 	query := "UPDATE orders SET user_id = $1 WHERE guest_order_token = $2"
 	result, err := r.db.ExecContext(ctx, query, userID, guestToken)
 	if err != nil {
-		return err
+		return apperrors.UpdateDataFailed.Wrap(err, "ゲスト注文のユーザー紐付けに失敗しました。")
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return apperrors.UpdateDataFailed.Wrap(err, "更新結果の取得に失敗しました。")
 	}
 	if rowsAffected == 0 {
-		return errors.New("no matching guest order found for the provided token")
+		return apperrors.NoData.Wrap(nil, "指定されたゲスト注文は見つかりませんでした。")
 	}
 	return nil
 }
@@ -141,23 +144,23 @@ func (r *orderRepository) FindActiveUserOrders(ctx context.Context, userID int) 
 
 	var orders []OrderWithDetailsDB
 	if err := r.db.SelectContext(ctx, &orders, query, models.Cooking, userID, models.Completed); err != nil {
-		return nil, fmt.Errorf("failed to select active user orders: %w", err)
+		return nil, apperrors.GetDataFailed.Wrap(err, "アクティブな注文履歴の取得に失敗しました。")
 	}
 
 	return orders, nil
 }
 
-// 注文の商品が何なのかとってくる
+// 注文IDに対応する商品をとってくる
 func (r *orderRepository) FindItemsByOrderIDs(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error) {
 	if len(orderIDs) == 0 {
 		return make(map[int][]models.ItemDetail), nil
 	}
 
 	query, args, err := sqlx.In(`
-		SELECT op.order_id, p.item_name, op.quantity
-		FROM order_item op
-		INNER JOIN items p ON op.item_id = p.item_id
-		WHERE op.order_id IN (?)
+		SELECT oi.order_id, i.item_name, oi.quantity
+		FROM order_item oi
+		INNER JOIN items i ON oi.item_id = i.item_id
+		WHERE oi.order_id IN (?)
 	`, orderIDs)
 	if err != nil {
 		return nil, err
@@ -166,7 +169,7 @@ func (r *orderRepository) FindItemsByOrderIDs(ctx context.Context, orderIDs []in
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, apperrors.GetDataFailed.Wrap(err, "データベースクエリの構築に失敗しました。")
 	}
 	defer rows.Close()
 	itemsMap := make(map[int][]models.ItemDetail)
@@ -174,7 +177,7 @@ func (r *orderRepository) FindItemsByOrderIDs(ctx context.Context, orderIDs []in
 		var orderID int
 		var item models.ItemDetail
 		if err := rows.Scan(&orderID, &item.ItemName, &item.Quantity); err != nil {
-			return nil, err
+			return nil, apperrors.GetDataFailed.Wrap(err, "注文商品データの読み取りに失敗しました。")
 		}
 		itemsMap[orderID] = append(itemsMap[orderID], item)
 	}
@@ -187,9 +190,9 @@ func (r *orderRepository) FindOrderByIDAndUser(ctx context.Context, orderID int,
 	query := "SELECT * FROM orders WHERE order_id = $1 AND user_id = $2"
 	if err := r.db.GetContext(ctx, &order, query, orderID, userID); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.New("order not found or you do not have permission")
+			return nil, apperrors.NoData.Wrap(err, "注文が見つからないか、アクセス権がありません。")
 		}
-		return nil, err
+		return nil, apperrors.GetDataFailed.Wrap(err, "注文情報の取得に失敗しました。")
 	}
 	return &order, nil
 }
@@ -197,8 +200,10 @@ func (r *orderRepository) FindOrderByIDAndUser(ctx context.Context, orderID int,
 func (r *orderRepository) CountWaitingOrders(ctx context.Context, shopID int, orderDate time.Time) (int, error) {
 	var count int
 	query := `SELECT COUNT(*) FROM orders WHERE shop_id = $1 AND status = $2 AND order_date < $3`
-	err := r.db.GetContext(ctx, &count, query, shopID, models.Cooking, orderDate)
-	return count, err
+	if err := r.db.GetContext(ctx, &count, query, shopID, models.Cooking, orderDate); err != nil {
+		return 0, apperrors.GetDataFailed.Wrap(err, "待ち人数の取得に失敗しました。")
+	}
+	return count, nil
 }
 
 // 管理者が注文取得
@@ -227,13 +232,13 @@ func (r *orderRepository) FindShopOrdersByStatuses(ctx context.Context, shopID i
 			o.order_date ASC
 	`, shopID, statuses)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build query for shop orders: %w", err)
+		return nil, apperrors.GetDataFailed.Wrap(err, "データベースクエリの構築に失敗しました。")
 	}
 	query = r.db.Rebind(query)
 
 	var orders []AdminOrderDBResult
 	if err := r.db.SelectContext(ctx, &orders, query, args...); err != nil {
-		return nil, fmt.Errorf("failed to select orders for shop: %w", err)
+		return nil, apperrors.GetDataFailed.Wrap(err, "店舗の注文情報取得に失敗しました。")
 	}
 	return orders, nil
 }
@@ -243,10 +248,10 @@ func (r *orderRepository) FindOrderByIDAndShopID(ctx context.Context, orderID in
 	query := `SELECT * FROM orders WHERE order_id = $1 AND shop_id = $2`
 	err := r.db.GetContext(ctx, &order, query, orderID, shopID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.New("order not found or permission denied")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, apperrors.NoData.Wrap(err, "注文が見つからないか、この店舗の管轄外です。")
 		}
-		return nil, err
+		return nil, apperrors.GetDataFailed.Wrap(err, "注文情報の取得に失敗しました。")
 	}
 
 	return &order, nil
@@ -256,14 +261,14 @@ func (r *orderRepository) UpdateOrderStatus(ctx context.Context, orderID int, sh
 	query := `UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2 AND shop_id = $3`
 	result, err := r.db.ExecContext(ctx, query, newStatus, orderID, shopID)
 	if err != nil {
-		return err
+		return apperrors.UpdateDataFailed.Wrap(err, "注文ステータスの更新に失敗しました。")
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return apperrors.UpdateDataFailed.Wrap(err, "更新結果の取得に失敗しました。")
 	}
 	if rowsAffected == 0 {
-		return errors.New("no order was updated, perhaps it was deleted or does not belong to the shop")
+		return apperrors.NoData.Wrap(nil, "更新対象の注文が見つからないか、管轄外です。")
 	}
 	return nil
 }
@@ -272,16 +277,16 @@ func (r *orderRepository) DeleteOrderByIDAndShopID(ctx context.Context, orderID 
 	query := `DELETE FROM orders WHERE order_id = $1 AND shop_id = $2`
 	result, err := r.db.ExecContext(ctx, query, orderID, shopID)
 	if err != nil {
-		return err
+		return apperrors.DeleteDataFailed.Wrap(err, "注文の削除に失敗しました。")
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return apperrors.DeleteDataFailed.Wrap(err, "削除結果の取得に失敗しました。")
 	}
 
 	if rowsAffected == 0 {
-		return errors.New("no order was deleted. order not found or permission denied")
+		return apperrors.NoData.Wrap(nil, "削除対象の注文が見つからないか、管轄外です。")
 	}
 
 	return nil
