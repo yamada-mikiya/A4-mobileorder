@@ -58,53 +58,23 @@ func (s *authService) SignUp(ctx context.Context, req models.AuthenticateRequest
 
 func (s *authService) LogIn(ctx context.Context, req models.AuthenticateRequest) (string, error) {
 
-	storedUser, err := s.usr.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-	var appErr *apperrors.AppError
+    storedUser, err := s.usr.GetUserByEmail(ctx, req.Email)
+    if err != nil {
+        var appErr *apperrors.AppError
+        if errors.As(err, &appErr) {
+            if appErr.ErrCode == apperrors.NoData {
+                return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
+            }
+        }
+        return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
+    }
 
-    if errors.As(err, &appErr) {
-
-        if appErr.ErrCode == apperrors.NoData {
-            return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
+    if req.GuestOrderToken != "" {
+        if err := s.orr.UpdateUserIDByGuestToken(ctx, req.GuestOrderToken, storedUser.UserID); err != nil {
+            log.Printf("warning: failed to claim guest order for existing user %d: %v", storedUser.UserID, err)
         }
     }
-		if errors.As(err, &appErr) {
-
-			if appErr.ErrCode == apperrors.NoData {
-				return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
-			}
-		}
-		return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
-	if errors.As(err, &appErr) {
-
-		if appErr.ErrCode == apperrors.NoData {
-			return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
-		}
-	}
-	return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
-	if errors.As(err, &appErr) {
-
-		if appErr.ErrCode == apperrors.NoData {
-			return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
-		}
-	}
-	return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
-	if errors.As(err, &appErr) {
-
-		if appErr.ErrCode == apperrors.NoData {
-			return "", apperrors.Unauthorized.Wrap(err, "メールアドレスが見つかりません。")
-		}
-	}
-	return "", apperrors.Unknown.Wrap(err, "ログイン処理中に予期せぬエラーが発生しました。")
-	}
-
-	if req.GuestOrderToken != "" {
-		if err := s.orr.UpdateUserIDByGuestToken(ctx, req.GuestOrderToken, storedUser.UserID); err != nil {
-			log.Printf("warning: failed to claim guest order for existing user %d: %v", storedUser.UserID, err)
-		}
-	}
-
-	return s.createToken(ctx, storedUser)
+    return s.createToken(ctx, storedUser)
 }
 
 func (s *authService) createToken(ctx context.Context, user models.User) (string, error) {
