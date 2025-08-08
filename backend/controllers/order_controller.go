@@ -121,7 +121,7 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusCreated, resOrder)
 }
 
-// GetOrderListHandler は、ユーザーが確認するユーザーのアクティブな注文履歴を取得します。
+// GetOrderListHandler は、ユーザーのアクティブな注文履歴を取得します。
 // @Summary      アクティブな注文履歴の取得 (Get Active Order List)
 // @Description  ログイン中のユーザーの、現在アクティブな（調理中または調理完了）注文履歴を取得します。このAPIは常に'cooking'と'completed'ステータスの注文のみを返します。
 // @Tags         注文 (Order)
