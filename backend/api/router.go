@@ -1,5 +1,3 @@
-// /api/router.go
-
 package api
 
 import (
