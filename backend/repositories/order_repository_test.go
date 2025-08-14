@@ -100,14 +100,29 @@ func newTestOrder(userID, shopID int, totalAmount float64, status models.OrderSt
 	}
 }
 
+// createTestUser - テスト用ユーザーをDBに作成するヘルパー関数
+func createTestUser(t *testing.T, tx *sqlx.Tx, userID int, email string) {
+	t.Helper()
+	query := `INSERT INTO users (user_id, email) VALUES ($1, $2)`
+	_, err := tx.Exec(query, userID, email)
+	if err != nil {
+		t.Fatalf("テスト用ユーザーの作成に失敗しました: %v", err)
+	}
+}
+
+// createTestShop - テスト用店舗をDBに作成するヘルパー関数
+func createTestShop(t *testing.T, tx *sqlx.Tx, shopID int, name string) {
+	t.Helper()
+	query := `INSERT INTO shops (shop_id, name) VALUES ($1, $2)`
+	_, err := tx.Exec(query, shopID, name)
+	if err != nil {
+		t.Fatalf("テスト用店舗の作成に失敗しました: %v", err)
+	}
+}
+
 // createTestOrder - テスト用注文をDBに作成するヘルパー関数
 func createTestOrder(t *testing.T, tx *sqlx.Tx, orderID, userID, shopID int, status models.OrderStatus) {
 	t.Helper()
-
-	// 前提データを作成
-	createTestUserIfNotExists(t, tx, userID)
-	createTestShopIfNotExists(t, tx, shopID)
-
 	query := `INSERT INTO orders (order_id, user_id, shop_id, total_amount, status, order_date) 
 			  VALUES ($1, $2, $3, $4, $5, NOW())`
 	_, err := tx.Exec(query, orderID, userID, shopID, testTotalAmount1, status)
@@ -119,148 +134,11 @@ func createTestOrder(t *testing.T, tx *sqlx.Tx, orderID, userID, shopID int, sta
 // createTestOrderWithTime - 指定時刻でテスト用注文をDBに作成するヘルパー関数
 func createTestOrderWithTime(t *testing.T, tx *sqlx.Tx, orderID, userID, shopID int, status models.OrderStatus, orderDate time.Time) {
 	t.Helper()
-
-	// 前提データを作成
-	createTestUserIfNotExists(t, tx, userID)
-	createTestShopIfNotExists(t, tx, shopID)
-
 	query := `INSERT INTO orders (order_id, user_id, shop_id, total_amount, status, order_date) 
 			  VALUES ($1, $2, $3, $4, $5, $6)`
 	_, err := tx.Exec(query, orderID, userID, shopID, testTotalAmount1, status, orderDate)
 	if err != nil {
 		t.Fatalf("テスト用注文の作成に失敗しました: %v", err)
-	}
-}
-
-// createTestUser - テスト用ユーザーをDBに作成するヘルパー関数
-func createTestUser(t *testing.T, tx *sqlx.Tx, userID int, email string) {
-	t.Helper()
-	query := `INSERT INTO users (user_id, email) VALUES ($1, $2)`
-	_, err := tx.Exec(query, userID, email)
-	if err != nil {
-		t.Fatalf("テスト用ユーザーの作成に失敗しました: %v", err)
-	}
-}
-
-// createTestUserIfNotExists - ユーザーが存在しない場合のみ作成するヘルパー関数
-func createTestUserIfNotExists(t *testing.T, tx *sqlx.Tx, userID int) {
-	t.Helper()
-	var count int
-	err := tx.Get(&count, "SELECT COUNT(*) FROM users WHERE user_id = $1", userID)
-	if err != nil {
-		t.Fatalf("ユーザー存在チェックに失敗しました: %v", err)
-	}
-	if count == 0 {
-		email := fmt.Sprintf("user%d@test.com", userID)
-		createTestUser(t, tx, userID, email)
-	}
-}
-
-// createTestShopIfNotExists - 店舗が存在しない場合のみ作成するヘルパー関数
-func createTestShopIfNotExists(t *testing.T, tx *sqlx.Tx, shopID int) {
-	t.Helper()
-	var count int
-	err := tx.Get(&count, "SELECT COUNT(*) FROM shops WHERE shop_id = $1", shopID)
-	if err != nil {
-		t.Fatalf("店舗存在チェックに失敗しました: %v", err)
-	}
-	if count == 0 {
-		name := fmt.Sprintf("Test Shop %d", shopID)
-		query := `INSERT INTO shops (shop_id, name) VALUES ($1, $2)`
-		_, err := tx.Exec(query, shopID, name)
-		if err != nil {
-			t.Fatalf("テスト用店舗の作成に失敗しました: %v", err)
-		}
-	}
-}
-
-// beginTestTransaction - テスト用トランザクションを開始するヘルパー関数
-func beginTestTransaction(t *testing.T, db *sqlx.DB) *sqlx.Tx {
-	t.Helper()
-	tx := db.MustBegin()
-	return tx
-}
-
-// assertOrderEqual - Order構造体のフィールド比較ヘルパー関数
-func assertOrderEqual(t *testing.T, want, got *models.Order, fields ...string) {
-	t.Helper()
-	if got == nil {
-		t.Error("got order is nil")
-		return
-	}
-
-	for _, field := range fields {
-		switch field {
-		case "OrderID":
-			if want.OrderID != got.OrderID {
-				t.Errorf("OrderID: expected %d, got %d", want.OrderID, got.OrderID)
-			}
-		case "UserID":
-			if want.UserID != got.UserID {
-				t.Errorf("UserID: expected %v, got %v", want.UserID, got.UserID)
-			}
-		case "ShopID":
-			if want.ShopID != got.ShopID {
-				t.Errorf("ShopID: expected %d, got %d", want.ShopID, got.ShopID)
-			}
-		case "Status":
-			if want.Status != got.Status {
-				t.Errorf("Status: expected %v, got %v", want.Status, got.Status)
-			}
-		case "TotalAmount":
-			if want.TotalAmount != got.TotalAmount {
-				t.Errorf("TotalAmount: expected %f, got %f", want.TotalAmount, got.TotalAmount)
-			}
-		}
-	}
-}
-
-func assertOrderCreated(t *testing.T, tx *sqlx.Tx, order *models.Order, expectedItemCount int) {
-	t.Helper()
-	if order.OrderID == 0 {
-		t.Error("OrderIDが設定されていません")
-	}
-
-	var orderCount int
-	err := tx.Get(&orderCount, "SELECT COUNT(*) FROM orders WHERE order_id = $1", order.OrderID)
-	if err != nil {
-		t.Fatalf("DBから注文数を取得できませんでした: %v", err)
-	}
-	if orderCount != 1 {
-		t.Errorf("期待した注文レコード数は1ですが、実際は %d でした", orderCount)
-	}
-
-	var itemCount int
-	err = tx.Get(&itemCount, "SELECT COUNT(*) FROM order_item WHERE order_id = $1", order.OrderID)
-	if err != nil {
-		t.Fatalf("DBから注文アイテム数を取得できませんでした: %v", err)
-	}
-	if itemCount != expectedItemCount {
-		t.Errorf("期待した注文アイテムレコード数は %d ですが、実際は %d でした", expectedItemCount, itemCount)
-	}
-}
-
-func insertTestPrerequisites(t *testing.T, tx *sqlx.Tx, userID, shopID int) {
-	t.Helper()
-	user := newTestUser(userID)
-	shop := newTestShop(shopID)
-	items := newTestItems()
-
-	_, err := tx.NamedExec(`INSERT INTO users (user_id, email) VALUES (:user_id, :email)`, user)
-	if err != nil {
-		t.Fatalf("ユーザーの挿入に失敗しました: %v", err)
-	}
-
-	_, err = tx.NamedExec(`INSERT INTO shops (shop_id, name) VALUES (:shop_id, :name)`, shop)
-	if err != nil {
-		t.Fatalf("ショップの挿入に失敗しました: %v", err)
-	}
-
-	for _, item := range items {
-		_, err = tx.NamedExec(`INSERT INTO items (item_id, item_name, price) VALUES (:item_id, :item_name, :price)`, item)
-		if err != nil {
-			t.Fatalf("アイテムの挿入に失敗しました: %v", err)
-		}
 	}
 }
 
@@ -312,7 +190,18 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 				}
 			}()
 
-			insertTestPrerequisites(t, tx, testUserID, testShopID)
+			// テスト前提データの作成
+			createTestUser(t, tx, testUserID, fmt.Sprintf("user%d@test.com", testUserID))
+			createTestShop(t, tx, testShopID, fmt.Sprintf("Test Shop %d", testShopID))
+
+			// アイテムを直接作成
+			items := newTestItems()
+			for _, item := range items {
+				_, err := tx.NamedExec(`INSERT INTO items (item_id, item_name, price) VALUES (:item_id, :item_name, :price)`, item)
+				if err != nil {
+					t.Fatalf("アイテムの挿入に失敗しました: %v", err)
+				}
+			}
 
 			repo := repositories.NewOrderRepository(tx)
 			err := repo.CreateOrder(ctx, tt.order, tt.items)
@@ -321,7 +210,29 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 				assertAppError(t, err, tt.expectedErrCode)
 			} else {
 				assertNoError(t, err)
-				assertOrderCreated(t, tx, tt.order, tt.expectedItemCount)
+
+				// 注文が正しく作成されているかチェック
+				if tt.order.OrderID == 0 {
+					t.Error("OrderIDが設定されていません")
+				}
+
+				var orderCount int
+				err := tx.Get(&orderCount, "SELECT COUNT(*) FROM orders WHERE order_id = $1", tt.order.OrderID)
+				if err != nil {
+					t.Fatalf("DBから注文数を取得できませんでした: %v", err)
+				}
+				if orderCount != 1 {
+					t.Errorf("期待した注文レコード数は1ですが、実際は %d でした", orderCount)
+				}
+
+				var itemCount int
+				err = tx.Get(&itemCount, "SELECT COUNT(*) FROM order_item WHERE order_id = $1", tt.order.OrderID)
+				if err != nil {
+					t.Fatalf("DBから注文アイテム数を取得できませんでした: %v", err)
+				}
+				if itemCount != tt.expectedItemCount {
+					t.Errorf("期待した注文アイテムレコード数は %d ですが、実際は %d でした", tt.expectedItemCount, itemCount)
+				}
 			}
 		})
 	}
@@ -350,7 +261,19 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 			guestToken:  testGuestToken1,
 			userIDToSet: testUserID,
 			setup: func(t *testing.T, tx *sqlx.Tx) {
-				insertTestPrerequisites(t, tx, testUserID, testShopID)
+				// テスト前提データの作成
+				createTestUser(t, tx, testUserID, fmt.Sprintf("user%d@test.com", testUserID))
+				createTestShop(t, tx, testShopID, fmt.Sprintf("Test Shop %d", testShopID))
+
+				// アイテムを直接作成
+				items := newTestItems()
+				for _, item := range items {
+					_, err := tx.NamedExec(`INSERT INTO items (item_id, item_name, price) VALUES (:item_id, :item_name, :price)`, item)
+					if err != nil {
+						t.Fatalf("アイテムの挿入に失敗しました: %v", err)
+					}
+				}
+
 				tx.MustExec(`
 					INSERT INTO orders (shop_id, order_date, total_amount, guest_order_token, status)
 					VALUES ($1, NOW(), $2, $3, $4)
@@ -372,7 +295,18 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 			guestToken:  testGuestToken2,
 			userIDToSet: testUserID,
 			setup: func(t *testing.T, tx *sqlx.Tx) {
-				insertTestPrerequisites(t, tx, testUserID, testShopID)
+				// テスト前提データの作成
+				createTestUser(t, tx, testUserID, fmt.Sprintf("user%d@test.com", testUserID))
+				createTestShop(t, tx, testShopID, fmt.Sprintf("Test Shop %d", testShopID))
+
+				// アイテムを直接作成
+				items := newTestItems()
+				for _, item := range items {
+					_, err := tx.NamedExec(`INSERT INTO items (item_id, item_name, price) VALUES (:item_id, :item_name, :price)`, item)
+					if err != nil {
+						t.Fatalf("アイテムの挿入に失敗しました: %v", err)
+					}
+				}
 			},
 			expectedErrCode: apperrors.NoData,
 		},
@@ -706,6 +640,9 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 			orderID: testOrderID1,
 			userID:  testUserID1,
 			setup: func(tx *sqlx.Tx) {
+				// 前提データを作成
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking)
 			},
 			want: &models.Order{
@@ -721,6 +658,9 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 			orderID: testOrderID1,
 			userID:  testUserID2,
 			setup: func(tx *sqlx.Tx) {
+				// 前提データを作成（testUserID1で注文作成、testUserID2でアクセス試行）
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking)
 			},
 			expectedErrCode: apperrors.NoData,
@@ -736,7 +676,7 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -749,7 +689,26 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 			} else {
 				assertNoError(t, err)
 				if tt.want != nil {
-					assertOrderEqual(t, tt.want, got, "OrderID", "UserID", "ShopID", "Status", "TotalAmount")
+					// 注文の詳細を検証
+					if got == nil {
+						t.Error("got order is nil")
+						return
+					}
+					if tt.want.OrderID != got.OrderID {
+						t.Errorf("OrderID: expected %d, got %d", tt.want.OrderID, got.OrderID)
+					}
+					if tt.want.UserID != got.UserID {
+						t.Errorf("UserID: expected %v, got %v", tt.want.UserID, got.UserID)
+					}
+					if tt.want.ShopID != got.ShopID {
+						t.Errorf("ShopID: expected %d, got %d", tt.want.ShopID, got.ShopID)
+					}
+					if tt.want.Status != got.Status {
+						t.Errorf("Status: expected %v, got %v", tt.want.Status, got.Status)
+					}
+					if tt.want.TotalAmount != got.TotalAmount {
+						t.Errorf("TotalAmount: expected %f, got %f", tt.want.TotalAmount, got.TotalAmount)
+					}
 				}
 			}
 		})
@@ -777,14 +736,17 @@ func TestCountWaitingOrders(t *testing.T) {
 			shopID:    testShopID1,
 			orderDate: baseTime,
 			setup: func(tx *sqlx.Tx) {
-				// 調理中で指定時刻より前の注文（カウント対象）
+				// 前提データを作成
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestUser(t, tx, testUserID2, fmt.Sprintf("user%d@test.com", testUserID2))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
+				createTestShop(t, tx, testShopID2, fmt.Sprintf("Test Shop %d", testShopID2))
+
+				// 注文を作成
 				createTestOrderWithTime(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking, earlierTime)
 				createTestOrderWithTime(t, tx, testOrderID2, testUserID2, testShopID1, models.Cooking, earlierTime.Add(-30*time.Minute))
-				// 調理中だが指定時刻より後の注文（カウント対象外）
 				createTestOrderWithTime(t, tx, testOrderID3, testUserID1, testShopID1, models.Cooking, laterTime)
-				// 異なるステータスの注文（カウント対象外）
 				createTestOrderWithTime(t, tx, testOrderID4, testUserID2, testShopID1, models.Completed, earlierTime)
-				// 異なる店舗の注文（カウント対象外）
 				createTestOrderWithTime(t, tx, testOrderID5, testUserID1, testShopID2, models.Cooking, earlierTime)
 			},
 			want: 2,
@@ -800,7 +762,7 @@ func TestCountWaitingOrders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -837,16 +799,16 @@ func TestFindShopOrdersByStatuses(t *testing.T) {
 			shopID:   testShopID1,
 			statuses: []models.OrderStatus{models.Completed, models.Cooking},
 			setup: func(tx *sqlx.Tx) {
-				// テスト用ユーザー作成
+				// 前提データを作成
 				createTestUser(t, tx, testUserID1, "test1@example.com")
 				createTestUser(t, tx, testUserID2, "test2@example.com")
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
+				createTestShop(t, tx, testShopID2, fmt.Sprintf("Test Shop %d", testShopID2))
 
-				// 対象ステータスの注文
+				// 注文を作成
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Completed)
 				createTestOrder(t, tx, testOrderID2, testUserID2, testShopID1, models.Cooking)
-				// 対象外ステータスの注文
 				createTestOrder(t, tx, testOrderID3, testUserID1, testShopID1, models.Handed)
-				// 異なる店舗の注文
 				createTestOrder(t, tx, testOrderID4, testUserID1, testShopID2, models.Completed)
 			},
 			want: []repositories.AdminOrderDBResult{
@@ -863,29 +825,26 @@ func TestFindShopOrdersByStatuses(t *testing.T) {
 					Status:        models.Cooking,
 				},
 			},
-			expectedErrCode: apperrors.Unknown,
 		},
 		{
-			name:            "空のステータス配列では空の結果を返す",
-			shopID:          testShopID1,
-			statuses:        []models.OrderStatus{},
-			setup:           func(tx *sqlx.Tx) {},
-			want:            []repositories.AdminOrderDBResult{},
-			expectedErrCode: apperrors.Unknown,
+			name:     "空のステータス配列では空の結果を返す",
+			shopID:   testShopID1,
+			statuses: []models.OrderStatus{},
+			setup:    func(tx *sqlx.Tx) {},
+			want:     []repositories.AdminOrderDBResult{},
 		},
 		{
-			name:            "該当する注文がない場合は空の結果を返す",
-			shopID:          testShopID1,
-			statuses:        []models.OrderStatus{models.Completed},
-			setup:           func(tx *sqlx.Tx) {},
-			want:            []repositories.AdminOrderDBResult{},
-			expectedErrCode: apperrors.Unknown,
+			name:     "該当する注文がない場合は空の結果を返す",
+			shopID:   testShopID1,
+			statuses: []models.OrderStatus{models.Completed},
+			setup:    func(tx *sqlx.Tx) {},
+			want:     []repositories.AdminOrderDBResult{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -893,34 +852,34 @@ func TestFindShopOrdersByStatuses(t *testing.T) {
 			repo := repositories.NewOrderRepository(tx)
 			got, err := repo.FindShopOrdersByStatuses(context.Background(), tt.shopID, tt.statuses)
 
-			if tt.expectedErrCode != apperrors.Unknown {
+			if tt.expectedErrCode != "" {
 				assertAppError(t, err, tt.expectedErrCode)
-				return
-			}
-			assertNoError(t, err)
+			} else {
+				assertNoError(t, err)
 
-			if len(got) != len(tt.want) {
-				t.Errorf("expected %d orders, got %d", len(tt.want), len(got))
-				return
-			}
-
-			for i, want := range tt.want {
-				if i >= len(got) {
-					t.Errorf("missing order at index %d", i)
-					continue
+				if len(got) != len(tt.want) {
+					t.Errorf("expected %d orders, got %d", len(tt.want), len(got))
+					return
 				}
 
-				if got[i].OrderID != want.OrderID {
-					t.Errorf("order %d: expected OrderID %d, got %d", i, want.OrderID, got[i].OrderID)
-				}
-				if got[i].CustomerEmail != want.CustomerEmail {
-					t.Errorf("order %d: expected CustomerEmail %v, got %v", i, want.CustomerEmail, got[i].CustomerEmail)
-				}
-				if got[i].TotalAmount != want.TotalAmount {
-					t.Errorf("order %d: expected TotalAmount %f, got %f", i, want.TotalAmount, got[i].TotalAmount)
-				}
-				if got[i].Status != want.Status {
-					t.Errorf("order %d: expected Status %v, got %v", i, want.Status, got[i].Status)
+				for i, want := range tt.want {
+					if i >= len(got) {
+						t.Errorf("missing order at index %d", i)
+						continue
+					}
+
+					if got[i].OrderID != want.OrderID {
+						t.Errorf("order %d: expected OrderID %d, got %d", i, want.OrderID, got[i].OrderID)
+					}
+					if got[i].CustomerEmail != want.CustomerEmail {
+						t.Errorf("order %d: expected CustomerEmail %v, got %v", i, want.CustomerEmail, got[i].CustomerEmail)
+					}
+					if got[i].TotalAmount != want.TotalAmount {
+						t.Errorf("order %d: expected TotalAmount %f, got %f", i, want.TotalAmount, got[i].TotalAmount)
+					}
+					if got[i].Status != want.Status {
+						t.Errorf("order %d: expected Status %v, got %v", i, want.Status, got[i].Status)
+					}
 				}
 			}
 		})
@@ -944,6 +903,8 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 			orderID: testOrderID1,
 			shopID:  testShopID1,
 			setup: func(tx *sqlx.Tx) {
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking)
 			},
 			want: &models.Order{
@@ -953,13 +914,14 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 				Status:      models.Cooking,
 				TotalAmount: testTotalAmount1,
 			},
-			expectedErrCode: apperrors.Unknown,
 		},
 		{
 			name:    "異なる店舗IDでは注文が取得できない",
 			orderID: testOrderID1,
 			shopID:  testShopID2,
 			setup: func(tx *sqlx.Tx) {
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking)
 			},
 			want:            nil,
@@ -977,7 +939,7 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -985,17 +947,36 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 			repo := repositories.NewOrderRepository(tx)
 			got, err := repo.FindOrderByIDAndShopID(context.Background(), tt.orderID, tt.shopID)
 
-			if tt.expectedErrCode != apperrors.Unknown {
+			if tt.expectedErrCode != "" {
 				assertAppError(t, err, tt.expectedErrCode)
-				return
-			}
-			assertNoError(t, err)
-
-			if tt.want != nil {
-				assertOrderEqual(t, tt.want, got, "OrderID", "UserID", "ShopID", "Status", "TotalAmount")
 			} else {
-				if got != nil {
-					t.Errorf("expected nil order, got %+v", got)
+				assertNoError(t, err)
+
+				if tt.want != nil {
+					// 注文の詳細を検証
+					if got == nil {
+						t.Error("got order is nil")
+						return
+					}
+					if tt.want.OrderID != got.OrderID {
+						t.Errorf("OrderID: expected %d, got %d", tt.want.OrderID, got.OrderID)
+					}
+					if tt.want.UserID != got.UserID {
+						t.Errorf("UserID: expected %v, got %v", tt.want.UserID, got.UserID)
+					}
+					if tt.want.ShopID != got.ShopID {
+						t.Errorf("ShopID: expected %d, got %d", tt.want.ShopID, got.ShopID)
+					}
+					if tt.want.Status != got.Status {
+						t.Errorf("Status: expected %v, got %v", tt.want.Status, got.Status)
+					}
+					if tt.want.TotalAmount != got.TotalAmount {
+						t.Errorf("TotalAmount: expected %f, got %f", tt.want.TotalAmount, got.TotalAmount)
+					}
+				} else {
+					if got != nil {
+						t.Errorf("expected nil order, got %+v", got)
+					}
 				}
 			}
 		})
@@ -1020,9 +1001,10 @@ func TestUpdateOrderStatus(t *testing.T) {
 			shopID:    testShopID1,
 			newStatus: models.Cooking,
 			setup: func(tx *sqlx.Tx) {
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Completed)
 			},
-			expectedErrCode: apperrors.Unknown,
 		},
 		{
 			name:      "異なる店舗IDでは更新できない",
@@ -1030,6 +1012,8 @@ func TestUpdateOrderStatus(t *testing.T) {
 			shopID:    testShopID2,
 			newStatus: models.Cooking,
 			setup: func(tx *sqlx.Tx) {
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Completed)
 			},
 			expectedErrCode: apperrors.NoData,
@@ -1046,7 +1030,7 @@ func TestUpdateOrderStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -1054,14 +1038,12 @@ func TestUpdateOrderStatus(t *testing.T) {
 			repo := repositories.NewOrderRepository(tx)
 			err := repo.UpdateOrderStatus(context.Background(), tt.orderID, tt.shopID, tt.newStatus)
 
-			if tt.expectedErrCode != apperrors.Unknown {
+			if tt.expectedErrCode != "" {
 				assertAppError(t, err, tt.expectedErrCode)
-				return
-			}
-			assertNoError(t, err)
+			} else {
+				assertNoError(t, err)
 
-			// 正常に更新された場合は実際にステータスが変更されているか確認
-			if err == nil {
+				// 正常に更新された場合は実際にステータスが変更されているか確認
 				var status models.OrderStatus
 				query := "SELECT status FROM orders WHERE order_id = $1 AND shop_id = $2"
 				err := tx.Get(&status, query, tt.orderID, tt.shopID)
@@ -1091,15 +1073,18 @@ func TestDeleteOrderByIDAndShopID(t *testing.T) {
 			orderID: testOrderID1,
 			shopID:  testShopID1,
 			setup: func(tx *sqlx.Tx) {
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking)
 			},
-			expectedErrCode: apperrors.Unknown,
 		},
 		{
 			name:    "異なる店舗IDでは削除できない",
 			orderID: testOrderID1,
 			shopID:  testShopID2,
 			setup: func(tx *sqlx.Tx) {
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 				createTestOrder(t, tx, testOrderID1, testUserID1, testShopID1, models.Cooking)
 			},
 			expectedErrCode: apperrors.NoData,
@@ -1115,7 +1100,7 @@ func TestDeleteOrderByIDAndShopID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -1123,20 +1108,20 @@ func TestDeleteOrderByIDAndShopID(t *testing.T) {
 			repo := repositories.NewOrderRepository(tx)
 			err := repo.DeleteOrderByIDAndShopID(context.Background(), tt.orderID, tt.shopID)
 
-			if tt.expectedErrCode != apperrors.Unknown {
+			if tt.expectedErrCode != "" {
 				assertAppError(t, err, tt.expectedErrCode)
-				return
-			}
-			assertNoError(t, err)
+			} else {
+				assertNoError(t, err)
 
-			// 正常に削除された場合は実際に注文が削除されているか確認
-			var count int
-			query := "SELECT COUNT(*) FROM orders WHERE order_id = $1 AND shop_id = $2"
-			err = tx.Get(&count, query, tt.orderID, tt.shopID)
-			if err != nil {
-				t.Errorf("failed to verify deletion: %v", err)
-			} else if count != 0 {
-				t.Errorf("expected order to be deleted, but still exists")
+				// 正常に削除された場合は実際に注文が削除されているか確認
+				var count int
+				query := "SELECT COUNT(*) FROM orders WHERE order_id = $1 AND shop_id = $2"
+				err = tx.Get(&count, query, tt.orderID, tt.shopID)
+				if err != nil {
+					t.Errorf("failed to verify deletion: %v", err)
+				} else if count != 0 {
+					t.Errorf("expected order to be deleted, but still exists")
+				}
 			}
 		})
 	}

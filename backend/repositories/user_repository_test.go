@@ -88,7 +88,7 @@ func TestCreateUser(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
@@ -165,7 +165,7 @@ func TestGetUserByEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			expectedUser := tt.setup(tx)

@@ -24,7 +24,7 @@ func assertAppError(t *testing.T, err error, expectedCode apperrors.ErrCode) {
 }
 
 // assertNoError - エラーなしアサーションヘルパー関数
-// エラーが発生していないことを検証します
+// 期待したエラーがないのに実際に関数を実行したときにエラーが発生していないことを検証します
 func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {

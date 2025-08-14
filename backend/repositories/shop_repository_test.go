@@ -2,6 +2,7 @@ package repositories_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
@@ -9,11 +10,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// テスト定数
 const (
 	testAdminUserID1   = 101
-	testStaffShopID1   = 1
-	testStaffShopID2   = 2
+	testStaffShopID1   = 101
+	testStaffShopID2   = 102
 	nonExistentAdminID = 999
 	multiShopAdminID   = 104
 )
@@ -22,15 +22,23 @@ const (
 func createTestShopStaff(t *testing.T, tx *sqlx.Tx, userID int, shopID int) {
 	t.Helper()
 
-	// ユーザーが存在しない場合は作成
-	createTestUserIfNotExists(t, tx, userID)
+	// ユーザーを作成（重複エラーを無視）
+	userQuery := `INSERT INTO users (user_id, email) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING`
+	_, err := tx.Exec(userQuery, userID, fmt.Sprintf("user%d@test.com", userID))
+	if err != nil {
+		t.Fatalf("テスト用ユーザーの作成に失敗しました: %v", err)
+	}
 
-	// 店舗が存在しない場合は作成
-	createTestShopIfNotExists(t, tx, shopID)
+	// 店舗を作成（重複エラーを無視）
+	shopQuery := `INSERT INTO shops (shop_id, name) VALUES ($1, $2) ON CONFLICT (shop_id) DO NOTHING`
+	_, err = tx.Exec(shopQuery, shopID, fmt.Sprintf("Test Shop %d", shopID))
+	if err != nil {
+		t.Fatalf("テスト用店舗の作成に失敗しました: %v", err)
+	}
 
 	// shop_staff テーブルに関係を挿入
 	query := `INSERT INTO shop_staff (user_id, shop_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
-	_, err := tx.Exec(query, userID, shopID)
+	_, err = tx.Exec(query, userID, shopID)
 	if err != nil {
 		t.Fatalf("テスト用店舗スタッフ関係の作成に失敗しました: %v", err)
 	}
@@ -76,7 +84,7 @@ func TestFindShopIDByAdminID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tx := beginTestTransaction(t, db)
+			tx := db.MustBegin()
 			defer tx.Rollback()
 
 			tt.setup(tx)
