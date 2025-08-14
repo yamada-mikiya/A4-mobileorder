@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
-	"github.com/jmoiron/sqlx"
 )
 
 type ShopRepository interface {
@@ -13,10 +12,10 @@ type ShopRepository interface {
 }
 
 type shopRepository struct {
-	db *sqlx.DB
+	db DBTX
 }
 
-func NewShopRepository(db *sqlx.DB) ShopRepository {
+func NewShopRepository(db DBTX) ShopRepository {
 	return &shopRepository{db}
 }
 

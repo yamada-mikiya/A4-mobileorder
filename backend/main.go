@@ -45,7 +45,7 @@ func main() {
 
 	adminService := services.NewAdminService(orderRepository)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository)
-	orderService := services.NewOrderService(orderRepository, itemRepository)
+	orderService := services.NewOrderService(orderRepository, itemRepository, db)
 	itemService := services.NewItemService(itemRepository)
 
 	adminController := controllers.NewAdminController(adminService)

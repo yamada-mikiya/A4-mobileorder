@@ -15,10 +15,10 @@ type ItemRepository interface {
 }
 
 type itemRepository struct {
-	db *sqlx.DB
+	db DBTX
 }
 
-func NewItemRepository(db *sqlx.DB) ItemRepository {
+func NewItemRepository(db DBTX) ItemRepository {
 	return &itemRepository{db}
 }
 
