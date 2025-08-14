@@ -18,29 +18,40 @@ import (
 
 // テスト定数
 const (
-	testUserID    = 1
-	testShopID    = 1
-	testUserID2   = 2
-	testUserID3   = 3
-	testShopID2   = 2
-	testItemID1   = 1
-	testItemID2   = 2
-	testPrice1    = 100.0
-	testPrice2    = 200.0
-	testAmount1   = 500.0
-	testAmount2   = 1000.0
+	// ユーザーID
+	testUserID1 = 1
+	testUserID2 = 2
+	testUserID3 = 3
+
+	// 店舗ID
+	testShopID1 = 1
+	testShopID2 = 2
+
+	// アイテムID
+	testItemID1 = 1
+	testItemID2 = 2
+
+	// 価格
+	testPrice1 = 100.0
+	testPrice2 = 200.0
+
+	// 金額
+	testAmount1 = 500.0
+	testAmount2 = 1000.0
+
+	// 数量
 	testQuantity1 = 1
 	testQuantity2 = 2
 	testQuantity3 = 3
 
-	// 新しいテスト用定数
-	testUserID1        = 1
-	testShopID1        = 1
-	testOrderID1       = 1
-	testOrderID2       = 2
-	testOrderID3       = 3
-	testOrderID4       = 4
-	testOrderID5       = 5
+	// 注文ID
+	testOrderID1 = 1
+	testOrderID2 = 2
+	testOrderID3 = 3
+	testOrderID4 = 4
+	testOrderID5 = 5
+
+	// その他
 	testTotalAmount1   = 1000.0
 	nonExistentOrderID = 9999
 )
@@ -156,7 +167,7 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 	}{
 		{
 			name:  "正常系: アイテム付きで注文が正常に作成される",
-			order: newTestOrder(testUserID, testShopID, testAmount1, models.Cooking),
+			order: newTestOrder(testUserID1, testShopID1, testAmount1, models.Cooking),
 			items: []models.OrderItem{
 				newTestOrderItem(0, testItemID1, testQuantity1, testPrice1),
 				newTestOrderItem(0, testItemID2, testQuantity2, testPrice2),
@@ -165,7 +176,7 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 		},
 		{
 			name:  "異常系: 存在しないアイテムIDの場合は失敗する",
-			order: newTestOrder(testUserID, testShopID, 0, models.Cooking),
+			order: newTestOrder(testUserID1, testShopID1, 0, models.Cooking),
 			items: []models.OrderItem{
 				newTestOrderItem(0, 999, testQuantity1, testPrice1),
 			},
@@ -173,7 +184,7 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 		},
 		{
 			name:              "正常系: アイテムなしで注文が正常に作成される",
-			order:             newTestOrder(testUserID, testShopID, 0, models.Cooking),
+			order:             newTestOrder(testUserID1, testShopID1, 0, models.Cooking),
 			items:             []models.OrderItem{},
 			expectedItemCount: 0,
 		},
@@ -191,8 +202,8 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 			}()
 
 			// テスト前提データの作成
-			createTestUser(t, tx, testUserID, fmt.Sprintf("user%d@test.com", testUserID))
-			createTestShop(t, tx, testShopID, fmt.Sprintf("Test Shop %d", testShopID))
+			createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+			createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 
 			// アイテムを直接作成
 			items := newTestItems()
@@ -259,11 +270,11 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 		{
 			name:        "正常系: ゲスト注文のuser_idが正常に更新される",
 			guestToken:  testGuestToken1,
-			userIDToSet: testUserID,
+			userIDToSet: testUserID1,
 			setup: func(t *testing.T, tx *sqlx.Tx) {
 				// テスト前提データの作成
-				createTestUser(t, tx, testUserID, fmt.Sprintf("user%d@test.com", testUserID))
-				createTestShop(t, tx, testShopID, fmt.Sprintf("Test Shop %d", testShopID))
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 
 				// アイテムを直接作成
 				items := newTestItems()
@@ -277,7 +288,7 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 				tx.MustExec(`
 					INSERT INTO orders (shop_id, order_date, total_amount, guest_order_token, status)
 					VALUES ($1, NOW(), $2, $3, $4)
-				`, testShopID, testAmount2, testGuestToken1, models.Cooking)
+				`, testShopID1, testAmount2, testGuestToken1, models.Cooking)
 			},
 			assertion: func(t *testing.T, tx *sqlx.Tx) {
 				var updatedUserID sql.NullInt64
@@ -285,19 +296,19 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 				if err != nil {
 					t.Fatalf("更新結果の取得に失敗しました: %v", err)
 				}
-				if !updatedUserID.Valid || updatedUserID.Int64 != int64(testUserID) {
-					t.Errorf("user_idが正しく更新されていません: 取得値 %v, 期待値 %d", updatedUserID, testUserID)
+				if !updatedUserID.Valid || updatedUserID.Int64 != int64(testUserID1) {
+					t.Errorf("user_idが正しく更新されていません: 取得値 %v, 期待値 %d", updatedUserID, testUserID1)
 				}
 			},
 		},
 		{
 			name:        "異常系: ゲストトークンが存在しない場合は失敗する",
 			guestToken:  testGuestToken2,
-			userIDToSet: testUserID,
+			userIDToSet: testUserID1,
 			setup: func(t *testing.T, tx *sqlx.Tx) {
 				// テスト前提データの作成
-				createTestUser(t, tx, testUserID, fmt.Sprintf("user%d@test.com", testUserID))
-				createTestShop(t, tx, testShopID, fmt.Sprintf("Test Shop %d", testShopID))
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
 
 				// アイテムを直接作成
 				items := newTestItems()
@@ -345,7 +356,7 @@ func setupActiveUserOrdersData(t *testing.T, tx *sqlx.Tx) {
 	t.Helper()
 
 	users := []models.User{
-		newTestUser(testUserID),
+		newTestUser(testUserID1),
 		newTestUser(testUserID2),
 		newTestUser(testUserID3),
 	}
@@ -357,7 +368,7 @@ func setupActiveUserOrdersData(t *testing.T, tx *sqlx.Tx) {
 	}
 
 	shops := []models.Shop{
-		newTestShopWithLocation(testShopID, "Shop A", "Location A"),
+		newTestShopWithLocation(testShopID1, "Shop A", "Location A"),
 		newTestShopWithLocation(testShopID2, "Shop B", "Location B"),
 	}
 	for _, shop := range shops {
@@ -376,13 +387,13 @@ func setupActiveUserOrdersData(t *testing.T, tx *sqlx.Tx) {
 		duration time.Duration
 		status   models.OrderStatus
 	}{
-		{1, testUserID, testShopID, 1 * time.Minute, models.Cooking},
-		{2, testUserID, testShopID, 2 * time.Minute, models.Cooking},
-		{3, testUserID, testShopID, 3 * time.Minute, models.Completed},
-		{4, testUserID, testShopID, 4 * time.Minute, models.Handed}, // 非アクティブ
-		{5, testUserID2, testShopID, 0 * time.Minute, models.Cooking},
-		{6, testUserID, testShopID2, 0 * time.Minute, models.Cooking}, // 異なるショップ
-		{7, testUserID3, testShopID, 5 * time.Minute, models.Handed},  // 非アクティブ
+		{1, testUserID1, testShopID1, 1 * time.Minute, models.Cooking},
+		{2, testUserID1, testShopID1, 2 * time.Minute, models.Cooking},
+		{3, testUserID1, testShopID1, 3 * time.Minute, models.Completed},
+		{4, testUserID1, testShopID1, 4 * time.Minute, models.Handed}, // 非アクティブ
+		{5, testUserID2, testShopID1, 0 * time.Minute, models.Cooking},
+		{6, testUserID1, testShopID2, 0 * time.Minute, models.Cooking}, // 異なるショップ
+		{7, testUserID3, testShopID1, 5 * time.Minute, models.Handed},  // 非アクティブ
 	}
 
 	for _, o := range orders {
@@ -409,7 +420,7 @@ func TestOrderRepository_FindActiveUserOrders(t *testing.T) {
 	}{
 		{
 			name:   "正常系: ユーザー1の正しい待機数付きアクティブ注文を返す",
-			userID: testUserID,
+			userID: testUserID1,
 			assertion: func(t *testing.T, got []repositories.OrderWithDetailsDB) {
 				expected := []repositories.OrderWithDetailsDB{
 					{OrderID: 3, ShopName: "Shop A", Location: "Location A", Status: models.Completed, WaitingCount: 0},
@@ -467,8 +478,8 @@ func TestOrderRepository_FindActiveUserOrders(t *testing.T) {
 func setupItemsByOrderIDsData(t *testing.T, tx *sqlx.Tx) {
 	t.Helper()
 
-	user := newTestUser(testUserID)
-	shop := newTestShop(testShopID)
+	user := newTestUser(testUserID1)
+	shop := newTestShop(testShopID1)
 
 	_, err := tx.NamedExec(`INSERT INTO users (user_id, email) VALUES (:user_id, :email)`, user)
 	if err != nil {
@@ -505,7 +516,7 @@ func setupItemsByOrderIDsData(t *testing.T, tx *sqlx.Tx) {
 		_, err := tx.Exec(`
 			INSERT INTO orders (order_id, user_id, shop_id, order_date, total_amount, status)
 			VALUES ($1, $2, $3, NOW(), $4, $5)
-		`, order.orderID, testUserID, testShopID, testPrice1, models.Cooking)
+		`, order.orderID, testUserID1, testShopID1, testPrice1, models.Cooking)
 		if err != nil {
 			t.Fatalf("テストセットアップ用注文 %d の挿入に失敗しました: %v", order.orderID, err)
 		}
