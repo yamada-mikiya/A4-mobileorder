@@ -31,5 +31,13 @@ func (c *itemController) GetItemListHandler(ctx echo.Context) error {
 
 	itemList, err := c.s.GetItemList(shopID)
 
-	return ctx.JSON(http.StatusOK, itemList)
+	if err != nil {
+		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message":"unable to retrieve item list"})
+	}
+	
+	return ctx.JSON(http.StatusOK, map[string]interface{}{
+		"status": "success",
+		"count" : len(itemList),
+		"data" : itemList,
+	})
 }
