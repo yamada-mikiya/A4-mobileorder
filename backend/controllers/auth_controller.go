@@ -52,10 +52,12 @@ func (c *authController) SignUpHandler(ctx echo.Context) error {
 		return err
 	}
 
-	return ctx.JSON(http.StatusCreated, map[string]interface{}{
-		"user":  userRes,
-		"token": tokenString,
-	})
+	SingUpRes := models.AuthResponse{
+		Token: tokenString,
+		User: userRes,
+	}
+
+	return ctx.JSON(http.StatusCreated, SingUpRes)
 }
 
 // LogInHandler は既存ユーザーを認証します。
@@ -81,12 +83,15 @@ func (c *authController) LogInHandler(ctx echo.Context) error {
 		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 
-	tokenString, err := c.s.LogIn(ctx.Request().Context(), req)
+	userRes, tokenString, err := c.s.LogIn(ctx.Request().Context(), req)
 	if err != nil {
 		return err
 	}
 
-	return ctx.JSON(http.StatusOK, map[string]string{
-		"token": tokenString,
-	})
+	LogInRes := models.AuthResponse{
+		Token: tokenString,
+		User: userRes,
+	}
+
+	return ctx.JSON(http.StatusOK, LogInRes)
 }

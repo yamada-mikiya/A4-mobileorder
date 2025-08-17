@@ -43,8 +43,8 @@ func main() {
 
 	customValidator := validators.NewValidator()
 
-	adminService := services.NewAdminService(orderRepository)
-	authService := services.NewAuthService(userRepository, shopRepository, orderRepository)
+	adminService := services.NewAdminService(db)
+	authService := services.NewAuthService(userRepository, shopRepository, orderRepository, db)
 	orderService := services.NewOrderService(orderRepository, itemRepository, db)
 	itemService := services.NewItemService(itemRepository)
 

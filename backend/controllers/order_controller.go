@@ -58,7 +58,7 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 // @Router       /orders [get]
 func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 		return apperrors.BadParam.Wrap(err, "注文IDの形式が不正です。")
 	}
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}

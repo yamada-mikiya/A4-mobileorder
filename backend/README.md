@@ -269,21 +269,94 @@ docker compose exec app migrate -path ./db/migrations -database "$DATABASE_URL" 
 
 ## テスト
 
-### リポジトリ層のテスト
+本プロジェクトでは、Makefileを使用して効率的にテストを実行できます。すべてのテストでカバレッジレポートが自動生成されます。
+
+### 🚀 クイック実行
 
 ```bash
-# テスト実行（カバレッジ付き）
-docker compose exec app go test -v -cover -coverpkg=./repositories -coverprofile=repositories/c.out ./repositories
+# 全層のテストを順次実行（推奨）
+make test
 
-# カバレッジレポート生成(生成されたhtmlファイルを開くとどれだけカバレッジされているのかが分かる)
-go tool cover -html=repositories/c.out -o repositories/coverage.html
+# 利用可能なコマンド一覧を表示
+make help
 ```
 
-### 全体テスト
+### 📋 層別テスト
+
+```bash
+# コントローラー層のテスト
+make test-controllers
+
+# サービス層のテスト（ユニット + 結合テスト）
+make test-services
+
+# リポジトリ層のテスト
+make test-repositories
+
+# 結合テストのみ実行
+make test-integration
+```
+
+### 📊 カバレッジレポート
+
+```bash
+# カバレッジレポート生成（HTMLファイル）
+make test-coverage
+
+# カバレッジサマリー表示
+make coverage-summary
+
+# テスト結果ファイルのクリーンアップ
+make clean
+```
+
+### 🔧 Docker環境での実行
+
+Docker環境でテストを実行する場合：
+
+```bash
+# Docker コンテナ内でテスト実行
+docker compose exec app make test
+
+# 特定の層のみテスト
+docker compose exec app make test-repositories
+
+# カバレッジレポート生成
+docker compose exec app make test-coverage
+```
+
+### 📈 カバレッジレポート確認
+
+テスト実行後、`coverage/`ディレクトリに以下のファイルが生成されます：
+
+- `coverage/report.html` - HTMLフォーマットの詳細レポート（ブラウザで開く）
+- `coverage/combined.out` - 統合カバレッジデータ
+- `coverage/controllers.out` - コントローラー層の個別カバレッジ
+- `coverage/services.out` - サービス層の個別カバレッジ  
+- `coverage/repositories.out` - リポジトリ層の個別カバレッジ
+
+```bash
+# HTMLレポートをブラウザで開く（例：Linux）
+xdg-open coverage/report.html
+
+# HTMLレポートをブラウザで開く（例：macOS）
+open coverage/report.html
+```
+
+### 🛠 従来のGoコマンド（参考）
+
+Makefileを使わない場合の従来のコマンド：
 
 ```bash
 # 全モジュールのテスト実行
-docker compose exec app go test -v ./...
+go test -v ./...
+
+# リポジトリ層のテスト（カバレッジ付き）
+DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" \
+go test -v -cover -coverpkg=./repositories -coverprofile=repositories_coverage.out ./repositories
+
+# カバレッジレポート生成
+go tool cover -html=repositories_coverage.out -o repositories_coverage.html
 ```
 
 ## 🗂 プロジェクト構造

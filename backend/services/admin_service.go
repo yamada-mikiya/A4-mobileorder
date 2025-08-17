@@ -6,6 +6,7 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
+	"github.com/jmoiron/sqlx"
 )
 
 type AdminServicer interface {
@@ -17,10 +18,22 @@ type AdminServicer interface {
 
 type adminService struct {
 	orr repositories.OrderRepository
+	txm TransactionManager
 }
 
-func NewAdminService(orr repositories.OrderRepository) AdminServicer {
-	return &adminService{orr}
+func NewAdminService(db *sqlx.DB) AdminServicer {
+	return &adminService{
+		orr: repositories.NewOrderRepository(db),
+		txm: NewTransactionManager(db),
+	}
+}
+
+// NewAdminServiceForTest creates an admin service for unit testing with mocked dependencies
+func NewAdminServiceForTest(mockRepo repositories.OrderRepository, mockTxm TransactionManager) AdminServicer {
+	return &adminService{
+		orr: mockRepo,
+		txm: mockTxm,
+	}
 }
 
 func (s *adminService) GetCookingOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
@@ -74,31 +87,35 @@ func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders
 }
 
 func (s *adminService) UpdateOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error {
+	return s.txm.WithTransaction(ctx, func(txRepo repositories.OrderRepository) error {
+		// 注文の確認とステータス更新を同一トランザクション内で実行
+		currentOrder, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+		if err != nil {
+			return err
+		}
 
-	currentOrder, err := s.orr.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-	if err != nil {
-		return err
-	}
+		var nextStatus models.OrderStatus
+		switch currentOrder.Status {
+		case models.Cooking:
+			nextStatus = models.Completed
+		case models.Completed:
+			nextStatus = models.Handed
+		default:
+			return apperrors.Conflict.Wrapf(nil, "ステータスが'%s'の注文はこれ以上進められません。", currentOrder.Status.String())
+		}
 
-	var nextStatus models.OrderStatus
-	switch currentOrder.Status {
-	case models.Cooking:
-		nextStatus = models.Completed
-	case models.Completed:
-		nextStatus = models.Handed
-	default:
-		return apperrors.Conflict.Wrapf(nil, "ステータスが'%s'の注文はこれ以上進められません。", currentOrder.Status.String())
-	}
-
-	return s.orr.UpdateOrderStatus(ctx, targetOrderID, adminShopID, nextStatus)
+		return txRepo.UpdateOrderStatus(ctx, targetOrderID, adminShopID, nextStatus)
+	})
 }
 
 func (s *adminService) DeleteOrder(ctx context.Context, adminShopID int, targetOrderID int) error {
+	return s.txm.WithTransaction(ctx, func(txRepo repositories.OrderRepository) error {
+		// 注文の存在確認と削除を同一トランザクション内で実行
+		_, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+		if err != nil {
+			return err
+		}
 
-	_, err := s.orr.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-	if err != nil {
-		return err
-	}
-
-	return s.orr.DeleteOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+		return txRepo.DeleteOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+	})
 }
