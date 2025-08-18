@@ -2,10 +2,9 @@ package repositories
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 )
 
 type ShopRepository interface {
@@ -13,10 +12,10 @@ type ShopRepository interface {
 }
 
 type shopRepository struct {
-	db *sqlx.DB
+	db DBTX
 }
 
-func NewShopRepository(db *sqlx.DB) ShopRepository {
+func NewShopRepository(db DBTX) ShopRepository {
 	return &shopRepository{db}
 }
 
@@ -29,15 +28,16 @@ func (r *shopRepository) FindShopIDByAdminID(ctx context.Context, userID int) (i
 	`
 	err := r.db.SelectContext(ctx, &shopIDs, query, userID)
 	if err != nil {
-		return 0, err
+		return 0, apperrors.GetDataFailed.Wrap(err, "管理者所属店舗の取得に失敗しました。")
 	}
 
 	switch len(shopIDs) {
 	case 0:
-		return 0, errors.New("shop not found for the given admin user")
+		return 0, apperrors.NoData.Wrap(nil, "この管理者アカウントに紐づく店舗が見つかりません。")
 	case 1:
 		return shopIDs[0], nil
 	default:
-		return 0, fmt.Errorf("data inconsistency: user_id %d is associated with multiple shops", userID)
+		err := fmt.Errorf("data inconsistency: user_id %d is associated with multiple shops", userID)
+		return 0, apperrors.Unknown.Wrap(err, "データ不整合が発生しました。")
 	}
 }

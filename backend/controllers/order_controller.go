@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/services"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/A4-dev-team/mobileorder.git/validators"
 	"github.com/labstack/echo/v4"
 )
 
@@ -20,10 +21,11 @@ type OrderController interface {
 
 type orderController struct {
 	s services.OrderServicer
+	v validators.Validator
 }
 
-func NewOrderController(s services.OrderServicer) OrderController {
-	return &orderController{s}
+func NewOrderController(s services.OrderServicer, v validators.Validator) OrderController {
+	return &orderController{s, v}
 }
 
 // CreateAuthenticatedOrderHandler は認証済みユーザーの注文を作成します。
@@ -43,28 +45,30 @@ func NewOrderController(s services.OrderServicer) OrderController {
 func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) error {
 	reqItem := models.CreateOrderRequest{}
 	if err := ctx.Bind(&reqItem); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return apperrors.ReqBodyDecodeFailed.Wrap(err, "リクエストの形式が不正です。")
+	}
+
+	if err := c.v.Validate(reqItem); err != nil {
+		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.Atoi(shopIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
+		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token context"})
+	claims, err := GetClaims(ctx)
+	if err != nil {
+		return err
 	}
-	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
 	log.Printf("Authenticated user (ID: %d) order flow", userID)
 
 	createdOrder, err := c.s.CreateAuthenticatedOrder(ctx.Request().Context(), userID, shopID, reqItem.Items)
 	if err != nil {
-		log.Printf("Error creating authenticated order: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create order"})
+		return err
 	}
 
 	resOrder := models.AuthenticatedOrderResponse{
@@ -89,21 +93,23 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 	reqItem := models.CreateOrderRequest{}
 	if err := ctx.Bind(&reqItem); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return apperrors.ReqBodyDecodeFailed.Wrap(err, "リクエストの形式が不正です。")
+	}
+	if err := c.v.Validate(reqItem); err != nil {
+		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.Atoi(shopIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop ID format"})
+		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
 	log.Println("Guest user order flow")
 
 	createdOrder, err := c.s.CreateOrder(ctx.Request().Context(), shopID, reqItem.Items)
 	if err != nil {
-		log.Printf("Error creating guest order: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "fail to create order"})
+		return err
 	}
 
 	resOrder := models.CreateOrderResponse{
@@ -128,16 +134,15 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 // @Router       /orders [get]
 func (c *orderController) GetOrderListHandler(ctx echo.Context) error {
 
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	claims, err := GetClaims(ctx)
+	if err != nil {
+		return err
 	}
-	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
 	orderList, err := c.s.GetUserOrders(ctx.Request().Context(), userID)
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order list"})
+		return err
 	}
 
 	return ctx.JSON(http.StatusOK, orderList)
@@ -161,22 +166,18 @@ func (c *orderController) GetOrderStatusHandler(ctx echo.Context) error {
 	orderIDStr := ctx.Param("order_id")
 	orderID, err := strconv.Atoi(orderIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, "invalid order_id")
+		return apperrors.BadParam.Wrap(err, "注文IDの形式が不正です。")
 	}
 
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "invalid token context")
+	claims, err := GetClaims(ctx)
+	if err != nil {
+		return err
 	}
-	claims := userToken.Claims.(*models.JwtCustomClaims)
 	userID := claims.UserID
 
 	status, err := c.s.GetOrderStatus(ctx.Request().Context(), userID, orderID)
 	if err != nil {
-		if err.Error() == "order not found or you do not have permission" {
-			return ctx.JSON(http.StatusNotFound, map[string]string{"message": err.Error()})
-		}
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to get order status"})
+		return err
 	}
 	return ctx.JSON(http.StatusOK, status)
 }

@@ -2,37 +2,60 @@ package services
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
+	"github.com/jmoiron/sqlx"
 )
 
 type AdminServicer interface {
-	GetAdminOrderPageData(ctx context.Context, shopID int) (*models.AdminOrderPageResponse, error)
-	AdvanceOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error
+	GetCookingOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error)
+	GetCompletedOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error)
+	UpdateOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error
 	DeleteOrder(ctx context.Context, adminShopID int, targetOrderID int) error
 }
 
 type adminService struct {
 	orr repositories.OrderRepository
+	txm TransactionManager
 }
 
-func NewAdminService(orr repositories.OrderRepository) AdminServicer {
-	return &adminService{orr}
+func NewAdminService(db *sqlx.DB) AdminServicer {
+	return &adminService{
+		orr: repositories.NewOrderRepository(db),
+		txm: NewTransactionManager(db),
+	}
 }
 
-func (s *adminService) GetAdminOrderPageData(ctx context.Context, shopID int) (*models.AdminOrderPageResponse, error) {
+// NewAdminServiceForTest creates an admin service for unit testing with mocked dependencies
+func NewAdminServiceForTest(mockRepo repositories.OrderRepository, mockTxm TransactionManager) AdminServicer {
+	return &adminService{
+		orr: mockRepo,
+		txm: mockTxm,
+	}
+}
 
-	dbOrders, err := s.orr.FindActiveShopOrders(ctx, shopID)
+func (s *adminService) GetCookingOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
+
+	cookingOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Cooking})
 	if err != nil {
 		return nil, err
 	}
+	return s.assembleAdminOrderResponses(ctx, cookingOrders)
+}
+
+func (s *adminService) GetCompletedOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
+	completedOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Completed})
+	if err != nil {
+		return nil, err
+	}
+	return s.assembleAdminOrderResponses(ctx, completedOrders)
+}
+
+func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders []repositories.AdminOrderDBResult) ([]models.AdminOrderResponse, error) {
 	if len(dbOrders) == 0 {
-		return &models.AdminOrderPageResponse{
-			CookingOrders:   []models.AdminOrderResponse{},
-			CompletedOrders: []models.AdminOrderResponse{},
-		}, nil
+		return []models.AdminOrderResponse{}, nil
 	}
 
 	orderIDs := make([]int, len(dbOrders))
@@ -44,18 +67,14 @@ func (s *adminService) GetAdminOrderPageData(ctx context.Context, shopID int) (*
 		return nil, err
 	}
 
-	pageData := &models.AdminOrderPageResponse{
-		CookingOrders:   make([]models.AdminOrderResponse, 0),
-		CompletedOrders: make([]models.AdminOrderResponse, 0),
-	}
-
-	for _, dbOrder := range dbOrders {
+	responses := make([]models.AdminOrderResponse, len(dbOrders))
+	for i, dbOrder := range dbOrders {
 		var emailPtr *string
 		if dbOrder.CustomerEmail.Valid {
 			emailPtr = &dbOrder.CustomerEmail.String
 		}
 
-		orderResponse := models.AdminOrderResponse{
+		responses[i] = models.AdminOrderResponse{
 			OrderID:       dbOrder.OrderID,
 			CustomerEmail: emailPtr,
 			OrderDate:     dbOrder.OrderDate,
@@ -63,44 +82,40 @@ func (s *adminService) GetAdminOrderPageData(ctx context.Context, shopID int) (*
 			Status:        dbOrder.Status.String(),
 			Items:         itemsMap[dbOrder.OrderID],
 		}
-
-		switch dbOrder.Status {
-		case models.Cooking:
-			pageData.CookingOrders = append(pageData.CookingOrders, orderResponse)
-		case models.Completed:
-			pageData.CompletedOrders = append(pageData.CompletedOrders, orderResponse)
-		}
 	}
-
-	return pageData, nil
+	return responses, nil
 }
 
-func (s *adminService) AdvanceOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error {
+func (s *adminService) UpdateOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error {
+	return s.txm.WithTransaction(ctx, func(txRepo repositories.OrderRepository) error {
+		// 注文の確認とステータス更新を同一トランザクション内で実行
+		currentOrder, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+		if err != nil {
+			return err
+		}
 
-	currentOrder, err := s.orr.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-	if err != nil {
-		return err
-	}
+		var nextStatus models.OrderStatus
+		switch currentOrder.Status {
+		case models.Cooking:
+			nextStatus = models.Completed
+		case models.Completed:
+			nextStatus = models.Handed
+		default:
+			return apperrors.Conflict.Wrapf(nil, "ステータスが'%s'の注文はこれ以上進められません。", currentOrder.Status.String())
+		}
 
-	var nextStatus models.OrderStatus
-	switch currentOrder.Status {
-	case models.Cooking:
-		nextStatus = models.Completed
-	case models.Completed:
-		nextStatus = models.Handed
-	default:
-		return fmt.Errorf("order with status '%s' cannot be advanced", currentOrder.Status.String())
-	}
-
-	return s.orr.UpdateOrderStatus(ctx, targetOrderID, adminShopID, nextStatus)
+		return txRepo.UpdateOrderStatus(ctx, targetOrderID, adminShopID, nextStatus)
+	})
 }
 
 func (s *adminService) DeleteOrder(ctx context.Context, adminShopID int, targetOrderID int) error {
+	return s.txm.WithTransaction(ctx, func(txRepo repositories.OrderRepository) error {
+		// 注文の存在確認と削除を同一トランザクション内で実行
+		_, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+		if err != nil {
+			return err
+		}
 
-	_, err := s.orr.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-	if err != nil {
-		return err
-	}
-
-	return s.orr.DeleteOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+		return txRepo.DeleteOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
+	})
 }

@@ -1,11 +1,12 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/services"
+	"github.com/A4-dev-team/mobileorder.git/validators"
 	"github.com/labstack/echo/v4"
 )
 
@@ -16,11 +17,13 @@ type AuthController interface {
 
 type authController struct {
 	s services.AuthServicer
+	v validators.Validator
 }
 
-func NewAuthController(s services.AuthServicer) AuthController {
-	return &authController{s}
+func NewAuthController(s services.AuthServicer, v validators.Validator) AuthController {
+	return &authController{s, v}
 }
+
 // SignUpHandler は新しいユーザーアカウントを作成します。
 // @Summary      新規ユーザー登録 (Sign Up)
 // @Description  新しいユーザーアカウントを作成し、認証トークンとユーザー情報を返します。
@@ -37,20 +40,26 @@ func NewAuthController(s services.AuthServicer) AuthController {
 func (c *authController) SignUpHandler(ctx echo.Context) error {
 	req := models.AuthenticateRequest{}
 	if err := ctx.Bind(&req); err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return apperrors.ReqBodyDecodeFailed.Wrap(err, "リクエストの形式が不正です。")
 	}
+
+	if err := c.v.Validate(req); err != nil {
+		return apperrors.ValidationFailed.Wrap(err, err.Error())
+	}
+
 	userRes, tokenString, err := c.s.SignUp(ctx.Request().Context(), req)
 	if err != nil {
-		if err.Error() == "email already exists" {
-			return ctx.JSON(http.StatusConflict, map[string]string{"message": "このメールアドレスは既に使用されています。"})
-		}
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "サインアップ処理中にエラーが発生しました。"})
+		return err
 	}
-	return ctx.JSON(http.StatusCreated, map[string]interface{}{
-		"user":  userRes,
-		"token": tokenString,
-	})
+
+	SingUpRes := models.AuthResponse{
+		Token: tokenString,
+		User: userRes,
+	}
+
+	return ctx.JSON(http.StatusCreated, SingUpRes)
 }
+
 // LogInHandler は既存ユーザーを認証します。
 // @Summary      ログイン (Log In)
 // @Description  既存のユーザーを認証し、新しい認証トークンを発行します。
@@ -67,18 +76,22 @@ func (c *authController) SignUpHandler(ctx echo.Context) error {
 func (c *authController) LogInHandler(ctx echo.Context) error {
 	req := models.AuthenticateRequest{}
 	if err := ctx.Bind(&req); err != nil {
-		return ctx.JSON(http.StatusBadRequest, err.Error())
-	}
-	tokenString, err := c.s.LogIn(ctx.Request().Context(), req)
-	if err != nil {
-		if err.Error() == "user not found" {
-			return ctx.JSON(http.StatusUnauthorized, map[string]string{"message": "メールアドレスが見つかりません。"})
-		}
-		log.Printf("Internal error during LogIn service: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "ログイン処理中にエラーが発生しました。"})
+		return apperrors.ReqBodyDecodeFailed.Wrap(err, "リクエストの形式が不正です。")
 	}
 
-	return ctx.JSON(http.StatusOK, map[string]string{
-		"token": tokenString,
-	})
+	if err := c.v.Validate(req); err != nil {
+		return apperrors.ValidationFailed.Wrap(err, err.Error())
+	}
+
+	userRes, tokenString, err := c.s.LogIn(ctx.Request().Context(), req)
+	if err != nil {
+		return err
+	}
+
+	LogInRes := models.AuthResponse{
+		Token: tokenString,
+		User: userRes,
+	}
+
+	return ctx.JSON(http.StatusOK, LogInRes)
 }

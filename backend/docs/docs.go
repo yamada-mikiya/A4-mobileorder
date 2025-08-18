@@ -194,14 +194,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/admin/shops/{shop_id}/orders": {
+        "/admin/shops/{shop_id}/orders/completed": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "ログイン中の管理者が担当する店舗の、アクティブな（調理中・調理完了）注文を全て取得します。",
+                "description": "ログイン中の管理者が担当する店舗の、「調理完了」ステータスの注文を全て取得します。",
                 "consumes": [
                     "application/json"
                 ],
@@ -211,7 +211,7 @@ const docTemplate = `{
                 "tags": [
                     "管理者 (Admin)"
                 ],
-                "summary": "管理店舗の注文一覧を取得 (Admin)",
+                "summary": "「調理完了」の注文一覧を取得 (Admin)",
                 "parameters": [
                     {
                         "type": "integer",
@@ -223,9 +223,88 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "調理中と調理完了に分かれた注文リスト",
+                        "description": "調理完了の注文リスト",
                         "schema": {
-                            "$ref": "#/definitions/models.AdminOrderPageResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.AdminOrderResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "店舗IDの形式が不正です",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "認証に失敗しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "この店舗へのアクセス権がありません",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "サーバー内部でエラーが発生しました",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/shops/{shop_id}/orders/cooking": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "ログイン中の管理者が担当する店舗の、「調理中」ステータスの注文を全て取得します。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理者 (Admin)"
+                ],
+                "summary": "「調理中」の注文一覧を取得 (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "注文一覧を取得する店舗のID",
+                        "name": "shop_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "調理中の注文リスト",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.AdminOrderResponse"
+                            }
                         }
                     },
                     "400": {
@@ -645,25 +724,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.AdminOrderPageResponse": {
-            "type": "object",
-            "properties": {
-                "completed_orders": {
-                    "description": "「調理完了」の注文リスト",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.AdminOrderResponse"
-                    }
-                },
-                "cooking_orders": {
-                    "description": "「調理中」の注文リスト",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.AdminOrderResponse"
-                    }
-                }
-            }
-        },
         "models.AdminOrderResponse": {
             "type": "object",
             "properties": {
@@ -780,6 +840,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.ItemDetail"
                     }
+                },
+                "location": {
+                    "type": "string"
                 },
                 "order_date": {
                     "type": "string"
