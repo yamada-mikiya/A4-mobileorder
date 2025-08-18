@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/google/uuid"
@@ -40,12 +40,12 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []mode
 
 	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, shopID, items)
 	if err != nil {
-		return nil, fmt.Errorf("fail to calculate total amount: %v", err)
+		return nil, err
 	}
 
 	guestToken, err := generateguestToken()
 	if err != nil {
-		return nil, err
+		return nil, apperrors.Unknown.Wrap(err, "ゲストトークンの生成に失敗しました。")
 	}
 
 	order := &models.Order{
@@ -86,14 +86,14 @@ func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int,
 func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, shopID int, items []models.OrderItemRequest) (float64, []models.OrderItem, error) {
 
 	if len(items) == 0 {
-		return 0, nil, errors.New("cannot create order with no items")
+		return 0, nil, apperrors.BadParam.Wrap(nil, "注文には少なくとも1つの商品が必要です。")
 	}
 
 	itemIDs := make([]int, len(items))
 	for i, item := range items {
 		itemIDs[i] = item.ItemID
 	}
-
+	//店に所属する商品IDに対する商品のマップを取得
 	validItemMap, err := s.prr.ValidateAndGetItemsForShop(ctx, shopID, itemIDs)
 	if err != nil {
 		return 0, nil, err
@@ -103,6 +103,11 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, shopID 
 	orderItemsToCreate := make([]models.OrderItem, len(items))
 	for i, item := range items {
 		itemModel := validItemMap[item.ItemID]
+
+		if !itemModel.IsAvailable {
+			return 0, nil, apperrors.Conflict.Wrapf(nil, "product '%s' (ID: %d) is currently unavailable", itemModel.ItemName, itemModel.ItemID)
+		}
+
 		priceAtOrder := itemModel.Price
 		totalAmount += priceAtOrder * float64(item.Quantity)
 

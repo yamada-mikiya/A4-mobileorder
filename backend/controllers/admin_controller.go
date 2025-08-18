@@ -1,11 +1,10 @@
 package controllers
 
 import (
-	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/services"
 	"github.com/golang-jwt/jwt/v5"
@@ -47,32 +46,20 @@ func (c *adminController) GetCookingOrdersHandler(ctx echo.Context) error {
 	targetShopIDStr := ctx.Param("shop_id")
 	targetShopID, err := strconv.Atoi(targetShopIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop_id format in URL."})
-	}
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "Invalid or missing token.")
-	}
-	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
-	if !ok {
-		return ctx.JSON(http.StatusInternalServerError, "Failed to parse custom claims.")
+		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
-	if claims.ShopID == nil {
-		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You are an admin but not associated with any shop."})
+	claims, err := getClaims(ctx)
+	if err != nil {
+		return err
 	}
-	adminShopID := *claims.ShopID
-
-	if adminShopID != targetShopID {
-		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You do not have permission to access this shop's data."})
+	if err := authorizeShopAccess(claims, targetShopID); err != nil {
+		return err
 	}
-
-	log.Printf("Admin user (ID: %d) authorized to access orders for shop (ID: %d)", claims.UserID, targetShopID)
 
 	orderList, err := c.s.GetCookingOrders(ctx.Request().Context(), targetShopID)
 	if err != nil {
-		log.Printf("failed to get cooking orders: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, "failed to get orders")
+		return err
 	}
 	return ctx.JSON(http.StatusOK, orderList)
 }
@@ -96,32 +83,20 @@ func (c *adminController) GetCompletedOrdersHandler(ctx echo.Context) error {
 	targetShopIDStr := ctx.Param("shop_id")
 	targetShopID, err := strconv.Atoi(targetShopIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid shop_id format in URL."})
-	}
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "Invalid or missing token.")
-	}
-	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
-	if !ok {
-		return ctx.JSON(http.StatusInternalServerError, "Failed to parse custom claims.")
+		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
-	if claims.ShopID == nil {
-		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You are an admin but not associated with any shop."})
+	claims, err := getClaims(ctx)
+	if err != nil {
+		return err
 	}
-	adminShopID := *claims.ShopID
-
-	if adminShopID != targetShopID {
-		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You do not have permission to access this shop's data."})
+	if err := authorizeShopAccess(claims, targetShopID); err != nil {
+		return err
 	}
-
-	log.Printf("Admin user (ID: %d) authorized to access orders for shop (ID: %d)", claims.UserID, targetShopID)
 
 	orderList, err := c.s.GetCompletedOrders(ctx.Request().Context(), targetShopID)
 	if err != nil {
-		log.Printf("failed to get completed orders: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, "failed to get orders")
+		return err
 	}
 	return ctx.JSON(http.StatusOK, orderList)
 }
@@ -144,38 +119,26 @@ func (c *adminController) GetCompletedOrdersHandler(ctx echo.Context) error {
 // @Router       /admin/orders/{order_id}/status [patch]
 func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "Invalid or missing token.")
-	}
-	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
-	if !ok {
-		return ctx.JSON(http.StatusInternalServerError, "Failed to parse custom claims.")
+	claims, err := getClaims(ctx)
+	if err != nil {
+		return err
 	}
 	if claims.ShopID == nil {
-		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You are not associated with any shop."})
+		return apperrors.Forbidden.Wrap(nil, "店舗に紐づいていない管理者アカウントです。")
 	}
 	adminShopID := *claims.ShopID
 
 	targetOrderID, err := strconv.Atoi(ctx.Param("order_id"))
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid order_id format."})
+		return apperrors.BadParam.Wrap(err, "注文IDの形式が不正です。")
 	}
 
 	err = c.s.UpdateOrderStatus(ctx.Request().Context(), adminShopID, targetOrderID)
 	if err != nil {
-
-		if err.Error() == "order not found or permission denied" {
-			return ctx.JSON(http.StatusNotFound, map[string]string{"message": err.Error()})
-		}
-		if strings.Contains(err.Error(), "cannot be advanced") {
-			return ctx.JSON(http.StatusConflict, map[string]string{"message": err.Error()})
-		}
-		log.Printf("Failed to advance order status: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "An internal error occurred."})
+		return err
 	}
 
-	return ctx.JSON(http.StatusOK, map[string]string{"message": "Order status advanced successfully."})
+	return ctx.JSON(http.StatusOK, map[string]string{"message": "注文ステータスを更新しました。"})
 }
 
 // DeleteOrderHandler は、管理者が担当する店舗の注文を削除します。
@@ -195,35 +158,50 @@ func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 // @Router       /admin/orders/{order_id}/delete [delete]
 func (c *adminController) DeleteOrderHandler(ctx echo.Context) error {
 
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return ctx.JSON(http.StatusUnauthorized, "Invalid or missing token.")
+	claims, err := getClaims(ctx)
+	if err != nil {
+		return err
 	}
-	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
-	if !ok {
-		return ctx.JSON(http.StatusInternalServerError, "Failed to parse custom claims.")
-	}
+
 	if claims.ShopID == nil {
-		return ctx.JSON(http.StatusForbidden, map[string]string{"message": "You are not associated with any shop."})
+		return apperrors.Forbidden.Wrap(nil, "店舗に紐づいていない管理者アカウントです。")
 	}
 	adminShopID := *claims.ShopID
 
 	targetOrderID, err := strconv.Atoi(ctx.Param("order_id"))
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "Invalid order_id format."})
+		return apperrors.BadParam.Wrap(err, "注文IDの形式が不正です。")
 	}
 
 	err = c.s.DeleteOrder(ctx.Request().Context(), adminShopID, targetOrderID)
 	if err != nil {
-		if err.Error() == "order not found or permission denied" {
-			return ctx.JSON(http.StatusNotFound, map[string]string{"message": err.Error()})
-		}
-		log.Printf("Failed to delete order: %v", err)
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message": "An internal error occurred."})
+		return err
 	}
-	return ctx.JSON(http.StatusOK, map[string]string{"message": "Order deleted successfully."})
+	return ctx.JSON(http.StatusOK, map[string]string{"message": "注文を削除しました。"})
 }
 
 func (c *adminController) UpdateItemAvailabilityHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Update item availability")
+}
+
+func getClaims(ctx echo.Context) (*models.JwtCustomClaims, error) {
+	userToken, ok := ctx.Get("user").(*jwt.Token)
+	if !ok || userToken == nil {
+		return nil, apperrors.Unauthorized.Wrap(nil, "リクエストにトークンが含まれていません。")
+	}
+	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
+	if !ok {
+		return nil, apperrors.Unauthorized.Wrap(nil, "トークンクレームの解析に失敗しました。")
+	}
+	return claims, nil
+}
+
+func authorizeShopAccess(claims *models.JwtCustomClaims, targetShopID int) error {
+	if claims.ShopID == nil {
+		return apperrors.Forbidden.Wrap(nil, "店舗に紐づいていない管理者アカウントです。")
+	}
+	if *claims.ShopID != targetShopID {
+		return apperrors.Forbidden.Wrap(nil, "この店舗へのアクセス権がありません。")
+	}
+	return nil
 }

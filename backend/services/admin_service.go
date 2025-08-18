@@ -2,8 +2,8 @@ package services
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 )
@@ -25,19 +25,19 @@ func NewAdminService(orr repositories.OrderRepository) AdminServicer {
 
 func (s *adminService) GetCookingOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
 
-	dbOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Cooking})
+	cookingOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Cooking})
 	if err != nil {
 		return nil, err
 	}
-	return s.assembleAdminOrderResponses(ctx, dbOrders)
+	return s.assembleAdminOrderResponses(ctx, cookingOrders)
 }
 
 func (s *adminService) GetCompletedOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
-	dbOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Completed})
+	completedOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Completed})
 	if err != nil {
 		return nil, err
 	}
-	return s.assembleAdminOrderResponses(ctx, dbOrders)
+	return s.assembleAdminOrderResponses(ctx, completedOrders)
 }
 
 func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders []repositories.AdminOrderDBResult) ([]models.AdminOrderResponse, error) {
@@ -87,7 +87,7 @@ func (s *adminService) UpdateOrderStatus(ctx context.Context, adminShopID int, t
 	case models.Completed:
 		nextStatus = models.Handed
 	default:
-		return fmt.Errorf("order with status '%s' cannot be advanced", currentOrder.Status.String())
+		return apperrors.Conflict.Wrapf(nil, "ステータスが'%s'の注文はこれ以上進められません。", currentOrder.Status.String())
 	}
 
 	return s.orr.UpdateOrderStatus(ctx, targetOrderID, adminShopID, nextStatus)
