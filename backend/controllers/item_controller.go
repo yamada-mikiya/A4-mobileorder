@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/services"
 	"github.com/labstack/echo/v4"
 )
@@ -26,18 +27,12 @@ func (c *itemController) GetItemListHandler(ctx echo.Context) error {
 	shopIDStr := ctx.Param("shop_id")
 	shopID, err := strconv.Atoi(shopIDStr)
 	if err != nil {
-		return ctx.JSON(http.StatusBadRequest, map[string]string{"message": "invalid shop_id"})
+		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
 	itemList, err := c.s.GetItemList(shopID)
-
 	if err != nil {
-		return ctx.JSON(http.StatusInternalServerError, map[string]string{"message":"unable to retrieve item list"})
+		return err
 	}
-	
-	return ctx.JSON(http.StatusOK, map[string]interface{}{
-		"status": "success",
-		"count" : len(itemList),
-		"data" : itemList,
-	})
+	return ctx.JSON(http.StatusOK, itemList)
 }

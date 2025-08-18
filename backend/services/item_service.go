@@ -18,8 +18,9 @@ func NewItemService(r repositories.ItemRepository) ItemServicer {
 }
 
 func (s *itemService) GetItemList(shopID int) ([]models.ItemListResponse, error) {
- items, err := s.r.GetItemList(shopID)
-    if err != nil {
-	return nil, nil
-}
+	itemList, err := s.r.GetItemList(shopID)
+	if err != nil {
+		return nil, err
+	}
+	return itemList, nil
 }
