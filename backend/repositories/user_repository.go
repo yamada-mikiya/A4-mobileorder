@@ -7,7 +7,6 @@ import (
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
@@ -17,10 +16,10 @@ type UserRepository interface {
 }
 
 type userRepository struct {
-	db *sqlx.DB
+	db DBTX
 }
 
-func NewUserRepository(db *sqlx.DB) UserRepository {
+func NewUserRepository(db DBTX) UserRepository {
 	return &userRepository{db}
 }
 

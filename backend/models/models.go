@@ -116,13 +116,13 @@ func (c *JwtCustomClaims) Valid() error {
 }
 
 type Shop struct {
-	ShopID      int       `json:"shop_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Location    string    `json:"location"`
-	IsOpen      bool      `json:"is_open"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ShopID      int       `json:"shop_id" db:"shop_id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Location    string    `json:"location" db:"location"`
+	IsOpen      bool      `json:"is_open" db:"is_open"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type Order struct {
@@ -155,4 +155,11 @@ type OrderItem struct {
 	PriceAtOrder float64   `db:"price_at_order"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+type ShopItem struct {
+	ShopID    int       `db:"shop_id"`
+	ItemID    int       `db:"item_id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }

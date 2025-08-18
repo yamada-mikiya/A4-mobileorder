@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 type OrderServicer interface {
@@ -20,11 +22,12 @@ type OrderServicer interface {
 
 type orderService struct {
 	orr repositories.OrderRepository
-	prr repositories.ItemRepository
+	itr repositories.ItemRepository
+	db  *sqlx.DB
 }
 
-func NewOrderService(orr repositories.OrderRepository, prr repositories.ItemRepository) OrderServicer {
-	return &orderService{orr, prr}
+func NewOrderService(orr repositories.OrderRepository, itr repositories.ItemRepository, db *sqlx.DB) OrderServicer {
+	return &orderService{orr, itr, db}
 }
 
 func generateguestToken() (string, error) {
@@ -36,9 +39,33 @@ func generateguestToken() (string, error) {
 	return token.String(), nil
 }
 
-func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
+func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []models.OrderItemRequest) (order *models.Order, err error) {
 
-	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, shopID, items)
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
+	}
+
+	// 2. deferでロールバックかコミットを保証
+	defer func() {
+		if p := recover(); p != nil || err != nil {
+			// panicまたはエラーが発生した場合はロールバック
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback failed: %v, original error: %v", rbErr, err)
+			}
+		} else {
+			// エラーがなければコミット
+			err = tx.Commit()
+			if err != nil {
+				err = apperrors.Unknown.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
+		}
+	}()
+
+	txOrderRepo := repositories.NewOrderRepository(tx)
+	txItemRepo := repositories.NewItemRepository(tx)
+
+	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, txItemRepo, shopID, items)
 	if err != nil {
 		return nil, err
 	}
@@ -48,34 +75,56 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []mode
 		return nil, apperrors.Unknown.Wrap(err, "ゲストトークンの生成に失敗しました。")
 	}
 
-	order := &models.Order{
+	order = &models.Order{
 		ShopID:          shopID,
 		TotalAmount:     totalAmount,
 		Status:          models.Cooking,
 		GuestOrderToken: sql.NullString{String: guestToken, Valid: true},
 	}
 
-	if err := s.orr.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
+	if err := txOrderRepo.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
 		return nil, err
 	}
 
 	return order, nil
 }
 
-func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
-	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, shopID, items)
+func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (order *models.Order, err error) {
+
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
+	}
+
+	defer func() {
+		if p := recover(); p != nil || err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("transaction rollback failed: %v, original error: %v", rbErr, err)
+			}
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				err = apperrors.Unknown.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
+		}
+	}()
+
+	txOrderRepo := repositories.NewOrderRepository(tx)
+	txItemRepo := repositories.NewItemRepository(tx)
+
+	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, txItemRepo, shopID, items)
 	if err != nil {
 		return nil, err
 	}
 
-	order := &models.Order{
+	order = &models.Order{
 		UserID:      sql.NullInt64{Int64: int64(userID), Valid: true},
 		ShopID:      shopID,
 		TotalAmount: totalAmount,
 		Status:      models.Cooking,
 	}
 
-	if err := s.orr.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
+	if err := txOrderRepo.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
 		return nil, err
 	}
 
@@ -83,7 +132,7 @@ func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int,
 }
 
 // 商品が店のものとあっているかの検証と合計金額とorder_itemテーブルに入れるためのデータを作るヘルパーメソッド
-func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, shopID int, items []models.OrderItemRequest) (float64, []models.OrderItem, error) {
+func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr repositories.ItemRepository, shopID int, items []models.OrderItemRequest) (float64, []models.OrderItem, error) {
 
 	if len(items) == 0 {
 		return 0, nil, apperrors.BadParam.Wrap(nil, "注文には少なくとも1つの商品が必要です。")
@@ -94,7 +143,7 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, shopID 
 		itemIDs[i] = item.ItemID
 	}
 	//店に所属する商品IDに対する商品のマップを取得
-	validItemMap, err := s.prr.ValidateAndGetItemsForShop(ctx, shopID, itemIDs)
+	validItemMap, err := itr.ValidateAndGetItemsForShop(ctx, shopID, itemIDs)
 	if err != nil {
 		return 0, nil, err
 	}

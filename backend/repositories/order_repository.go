@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
@@ -26,39 +25,20 @@ type OrderRepository interface {
 }
 
 type orderRepository struct {
-	db *sqlx.DB
+	db DBTX
 }
 
-func NewOrderRepository(db *sqlx.DB) OrderRepository {
+func NewOrderRepository(db DBTX) OrderRepository {
 	return &orderRepository{db}
 }
 
-func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, items []models.OrderItem) (err error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return apperrors.InsertDataFailed.Wrap(err, "トランザクションの開始に失敗しました。")
-	}
-
-	defer func() {
-		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback failed: %v, original error: %v", rbErr, err)
-			}
-		} else {
-			err = tx.Commit()
-			if err != nil {
-				err = apperrors.InsertDataFailed.Wrap(err, "トランザクションのコミットに失敗しました。")
-			}
-		}
-	}()
-
-	//orderにinsert
+func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, items []models.OrderItem) error {
 	orderQuery := `
-			INSERT INTO orders (user_id, shop_id, order_date, total_amount, guest_order_token, status)
-			VALUES ($1, $2, $3, $4, $5, $6)
-			RETURNING order_id, created_at, updated_at
+		INSERT INTO orders (user_id, shop_id, order_date, total_amount, guest_order_token, status)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING order_id, created_at, updated_at
 	`
-	err = tx.QueryRowContext(
+	err := r.db.QueryRowxContext(
 		ctx,
 		orderQuery,
 		order.UserID,
@@ -73,8 +53,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 		return apperrors.InsertDataFailed.Wrap(err, "注文の作成に失敗しました。")
 	}
 
-	//order_itemにinsert
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO order_item (order_id, item_id, quantity, price_at_order) VALUES ($1, $2, $3, $4)")
+	stmt, err := r.db.PreparexContext(ctx, "INSERT INTO order_item (order_id, item_id, quantity, price_at_order) VALUES ($1, $2, $3, $4)")
 	if err != nil {
 		return apperrors.InsertDataFailed.Wrap(err, "注文商品登録の準備に失敗しました。")
 	}
@@ -137,13 +116,13 @@ func (r *orderRepository) FindActiveUserOrders(ctx context.Context, userID int) 
 		INNER JOIN
 			shops s ON o.shop_id = s.shop_id
 		WHERE
-			o.user_id = $2 AND o.status IN ($1, $3)
+			o.status IN ($1, $2) AND o.user_id = $3
 		ORDER BY
 			o.order_date DESC;
 	`
 
 	var orders []OrderWithDetailsDB
-	if err := r.db.SelectContext(ctx, &orders, query, models.Cooking, userID, models.Completed); err != nil {
+	if err := r.db.SelectContext(ctx, &orders, query, models.Cooking, models.Completed, userID); err != nil {
 		return nil, apperrors.GetDataFailed.Wrap(err, "アクティブな注文履歴の取得に失敗しました。")
 	}
 
@@ -291,3 +270,4 @@ func (r *orderRepository) DeleteOrderByIDAndShopID(ctx context.Context, orderID 
 
 	return nil
 }
+
