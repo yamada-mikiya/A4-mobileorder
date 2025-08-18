@@ -213,7 +213,7 @@ curl -X PUT http://localhost:8080/admin/products/1/availability \
 |--------|------|------------|
 | `DATABASE_URL` | PostgreSQL接続URL | `postgres://myuser:mypassword@db:5432/mydb?sslmode=disable` |
 | `PORT` | APIサーバーポート | `8080` |
-| `SECRET` | JWT秘密鍵 | `mobileorder` |
+| `SECRET_KEY` | JWT秘密鍵 | `test-secret-key` |
 
 #### データベースコンテナ設定
 
@@ -229,7 +229,7 @@ curl -X PUT http://localhost:8080/admin/products/1/availability \
 # アプリからDBに接続する
 DATABASE_URL=postgres://myuser:mypassword@db:5432/mydb?sslmode=disable
 PORT=8080
-SECRET=mobileorder
+SECRET_KEY=test-secret-key
 
 # DBコンテナの初期化
 POSTGRES_USER=myuser
@@ -237,7 +237,7 @@ POSTGRES_PASSWORD=mypassword
 POSTGRES_DB=mydb
 ```
 
-> ⚠️ **セキュリティ注意**: 本番環境では強力なパスワードとランダムなSECRETキーを使用してください。
+> ⚠️ **セキュリティ注意**: 本番環境では強力なパスワードとランダムなSECRET_KEYを使用してください。
 
 ### API文書の更新
 

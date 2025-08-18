@@ -12,6 +12,7 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/services"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-cmp/cmp"
+	"github.com/joho/godotenv"
 )
 
 // UserRepositoryMock - UserRepositoryのモック実装
@@ -137,13 +138,28 @@ const (
 	testUserID          = 1
 	testShopID          = 1
 	testGuestOrderToken = "guest-token-123"
-	testSecret          = "test-secret-key"
 )
 
+// setupTestEnv は.envファイルから環境変数を読み込み、SECRET_KEYを取得する
+func setupTestEnv(t *testing.T) string {
+	t.Helper()
+
+	// .envファイルを読み込み（エラーは無視）
+	if err := godotenv.Load("../.env"); err != nil {
+		t.Logf("Warning: Could not load .env file: %v", err)
+	}
+
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		t.Skip("SECRET_KEY not set, skipping auth service test")
+	}
+
+	return secretKey
+}
+
 func TestAuthService_SignUp(t *testing.T) {
-	// SECRET環境変数を設定
-	os.Setenv("SECRET", testSecret)
-	defer os.Unsetenv("SECRET")
+	// .envファイルからSECRET_KEYを読み込み
+	testSecret := setupTestEnv(t)
 
 	tests := []struct {
 		name             string
@@ -336,9 +352,8 @@ func TestAuthService_SignUp(t *testing.T) {
 }
 
 func TestAuthService_LogIn(t *testing.T) {
-	// SECRET環境変数を設定
-	os.Setenv("SECRET", testSecret)
-	defer os.Unsetenv("SECRET")
+	// .envファイルからSECRET_KEYを読み込み
+	testSecret := setupTestEnv(t)
 
 	tests := []struct {
 		name            string
@@ -546,9 +561,8 @@ func TestAuthService_LogIn(t *testing.T) {
 }
 
 func TestAuthService_createToken(t *testing.T) {
-	// SECRET環境変数を設定
-	os.Setenv("SECRET", testSecret)
-	defer os.Unsetenv("SECRET")
+	// .envファイルからSECRET_KEYを読み込み
+	testSecret := setupTestEnv(t)
 
 	tests := []struct {
 		name            string
