@@ -37,10 +37,6 @@ OrderService.CreateOrder() - TestOrderService_CreateOrder_Integration
 
 AdminService.UpdateOrderStatus() - TestAdminService_UpdateOrderStatus_Integration
 - 注文ステータス更新のトランザクション動作
-
-【備考】
-WithTransaction または WithFullTransaction を使用する全てのサービスメソッドの
-実際のビジネスロジックがデータベースレベルで正しくテストされています。
 */
 
 // setupTestDB はテスト用のデータベース接続をセットアップします
