@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"log"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
@@ -35,12 +34,12 @@ func (tm *sqlxTransactionManager) WithOrderTransaction(ctx context.Context, fn f
 	defer func() {
 		if p := recover(); p != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback failed: %v", rbErr)
+				err = apperrors.Unknown.Wrap(rbErr, "パニック発生時のトランザクションロールバックに失敗しました。")
 			}
 			panic(p)
 		} else if err != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback failed: %v, original error: %v", rbErr, err)
+				err = apperrors.Unknown.Wrapf(rbErr, "エラー発生時のトランザクションロールバックに失敗しました。元のエラー: %v", err)
 			}
 		} else {
 			err = tx.Commit()
@@ -64,12 +63,12 @@ func (tm *sqlxTransactionManager) WithUserOrderTransaction(ctx context.Context, 
 	defer func() {
 		if p := recover(); p != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback failed: %v", rbErr)
+				err = apperrors.Unknown.Wrap(rbErr, "パニック発生時のトランザクションロールバックに失敗しました。")
 			}
 			panic(p)
 		} else if err != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("transaction rollback failed: %v, original error: %v", rbErr, err)
+				err = apperrors.Unknown.Wrapf(rbErr, "エラー発生時のトランザクションロールバックに失敗しました。元のエラー: %v", err)
 			}
 		} else {
 			err = tx.Commit()

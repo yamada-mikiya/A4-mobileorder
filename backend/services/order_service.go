@@ -26,11 +26,19 @@ type orderService struct {
 }
 
 func NewOrderService(orr repositories.OrderRepository, itr repositories.ItemRepository, db *sqlx.DB) OrderServicer {
-	return &orderService{orr, itr, &sqlxTransactionManager{db: db}}
+	return &orderService{
+		orr: orr,
+		itr: itr,
+		tm:  NewTransactionManager(db),
+	}
 }
 
 func NewOrderServiceForTest(orr repositories.OrderRepository, itr repositories.ItemRepository, tm TransactionManager) OrderServicer {
-	return &orderService{orr, itr, tm}
+	return &orderService{
+		orr: orr,
+		itr: itr,
+		tm:  tm,
+	}
 }
 
 func generateguestToken() (string, error) {
@@ -132,7 +140,7 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr rep
 		itemModel := validItemMap[item.ItemID]
 
 		if !itemModel.IsAvailable {
-			return 0, nil, apperrors.Conflict.Wrapf(nil, "対象の商品 '%s' (ID: %d) は、現在在庫切れです", itemModel.ItemName, itemModel.ItemID)
+			return 0, nil, apperrors.BadParam.Wrapf(nil, "対象の商品 '%s' (ID: %d) は、現在在庫切れです", itemModel.ItemName, itemModel.ItemID)
 		}
 
 		priceAtOrder := itemModel.Price

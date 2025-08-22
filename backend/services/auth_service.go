@@ -190,7 +190,13 @@ func (s *authService) createToken(ctx context.Context, user models.User) (string
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	t, err := token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		return "", apperrors.Unknown.Wrap(errors.New("SECRET_KEY environment variable is not set or is empty"), "認証トークンの作成に失敗しました。")
+	}
+
+	t, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", apperrors.Unknown.Wrap(err, "認証トークンの作成に失敗しました。")
 	}

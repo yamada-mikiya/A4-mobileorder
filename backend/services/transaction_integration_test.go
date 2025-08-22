@@ -583,7 +583,8 @@ func TestAdminService_UpdateOrderStatus_Integration(t *testing.T) {
 	defer db.Close()
 
 	// 実際のサービスを作成
-	adminService := services.NewAdminService(db)
+	orderRepo := repositories.NewOrderRepository(db)
+	adminService := services.NewAdminService(orderRepo, db)
 
 	tests := []struct {
 		name        string

@@ -21,9 +21,9 @@ type adminService struct {
 	txm TransactionManager
 }
 
-func NewAdminService(db *sqlx.DB) AdminServicer {
+func NewAdminService(orr repositories.OrderRepository, db *sqlx.DB) AdminServicer {
 	return &adminService{
-		orr: repositories.NewOrderRepository(db),
+		orr: orr,
 		txm: NewTransactionManager(db),
 	}
 }

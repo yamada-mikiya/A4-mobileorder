@@ -40,7 +40,7 @@ func main() {
 	shopRepository := repositories.NewShopRepository(db)
 	itemRepository := repositories.NewItemRepository(db)
 
-	adminService := services.NewAdminService(db)
+	adminService := services.NewAdminService(orderRepository, db)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository, db)
 	orderService := services.NewOrderService(orderRepository, itemRepository, db)
 	itemService := services.NewItemService(itemRepository)
