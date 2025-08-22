@@ -7,7 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 )
-
+//最終的に返ってきたエラーをクライアントにJSON形式で見せてあげる
 func ErrorHandler(err error, ctx echo.Context) {
 	if ctx.Response().Committed {
 		return

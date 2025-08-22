@@ -50,6 +50,7 @@ func (r *UserRole) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+// -----------------定義終わり--------------------------
 
 // --- OrderStatus 型と定数の定義 ---
 type OrderStatus int
@@ -95,6 +96,7 @@ func (s *OrderStatus) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+// ---------------定義終わり----------------
 
 type User struct {
 	UserID    int       `json:"user_id" db:"user_id"`

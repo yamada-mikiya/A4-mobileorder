@@ -5,9 +5,7 @@ import (
 	"strconv"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
-	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/services"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
@@ -49,11 +47,11 @@ func (c *adminController) GetCookingOrdersHandler(ctx echo.Context) error {
 		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}
-	if err := authorizeShopAccess(claims, targetShopID); err != nil {
+	if err := AuthorizeShopAccess(claims, targetShopID); err != nil {
 		return err
 	}
 
@@ -86,11 +84,11 @@ func (c *adminController) GetCompletedOrdersHandler(ctx echo.Context) error {
 		return apperrors.BadParam.Wrap(err, "店舗IDの形式が不正です。")
 	}
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}
-	if err := authorizeShopAccess(claims, targetShopID); err != nil {
+	if err := AuthorizeShopAccess(claims, targetShopID); err != nil {
 		return err
 	}
 
@@ -119,7 +117,7 @@ func (c *adminController) GetCompletedOrdersHandler(ctx echo.Context) error {
 // @Router       /admin/orders/{order_id}/status [patch]
 func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}
@@ -158,7 +156,7 @@ func (c *adminController) UpdateOrderStatusHandler(ctx echo.Context) error {
 // @Router       /admin/orders/{order_id}/delete [delete]
 func (c *adminController) DeleteOrderHandler(ctx echo.Context) error {
 
-	claims, err := getClaims(ctx)
+	claims, err := GetClaims(ctx)
 	if err != nil {
 		return err
 	}
@@ -182,26 +180,4 @@ func (c *adminController) DeleteOrderHandler(ctx echo.Context) error {
 
 func (c *adminController) UpdateItemAvailabilityHandler(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "Update item availability")
-}
-
-func getClaims(ctx echo.Context) (*models.JwtCustomClaims, error) {
-	userToken, ok := ctx.Get("user").(*jwt.Token)
-	if !ok || userToken == nil {
-		return nil, apperrors.Unauthorized.Wrap(nil, "リクエストにトークンが含まれていません。")
-	}
-	claims, ok := userToken.Claims.(*models.JwtCustomClaims)
-	if !ok {
-		return nil, apperrors.Unauthorized.Wrap(nil, "トークンクレームの解析に失敗しました。")
-	}
-	return claims, nil
-}
-
-func authorizeShopAccess(claims *models.JwtCustomClaims, targetShopID int) error {
-	if claims.ShopID == nil {
-		return apperrors.Forbidden.Wrap(nil, "店舗に紐づいていない管理者アカウントです。")
-	}
-	if *claims.ShopID != targetShopID {
-		return apperrors.Forbidden.Wrap(nil, "この店舗へのアクセス権がありません。")
-	}
-	return nil
 }

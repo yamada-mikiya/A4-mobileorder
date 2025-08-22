@@ -1,5 +1,4 @@
 .env
 
 /tmp
-/repositories/c.out
-/repositories/coverage.html
+/coverage/

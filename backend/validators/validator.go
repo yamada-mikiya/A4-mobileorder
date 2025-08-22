@@ -1,21 +1,35 @@
 package validators
 
 import (
+	"sync"
+
 	"github.com/go-playground/validator/v10"
 )
 
-type Validator interface {
-	Validate(i interface{}) error
+type Validator[T any] interface {
+	Validate(t T) error
 }
 
-type customValidator struct {
-	validator *validator.Validate
+type customValidator[T any] struct {
+	validate *validator.Validate
 }
 
-func NewValidator() Validator {
-	return &customValidator{validator: validator.New()}
+var (
+	singletonValidator *validator.Validate
+	once               sync.Once
+)
+
+func getSingletonValidator() *validator.Validate {
+	once.Do(func() {
+		singletonValidator = validator.New()
+	})
+	return singletonValidator
 }
 
-func (cv *customValidator) Validate(i interface{}) error {
-	return cv.validator.Struct(i)
+func NewValidator[T any]() Validator[T] {
+	return &customValidator[T]{validate: getSingletonValidator()}
+}
+
+func (v *customValidator[T]) Validate(t T) error {
+	return v.validate.Struct(t)
 }

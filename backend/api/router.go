@@ -32,7 +32,7 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
 			return new(models.JwtCustomClaims)
 		},
-		SigningKey:    []byte(os.Getenv("SECRET")),
+		SigningKey:    []byte(os.Getenv("SECRET_KEY")),
 		TokenLookup:   "header:Authorization:Bearer ",
 		SigningMethod: "HS256",
 	}

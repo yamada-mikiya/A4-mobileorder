@@ -16,7 +16,7 @@ type UserResponse struct {
 	Role   string `json:"role" exapmple:"customer"`
 }
 
-type SignUpResponse struct {
+type AuthResponse struct {
 	Token string       `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
 	User  UserResponse `json:"user"`
 }
