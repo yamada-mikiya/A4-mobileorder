@@ -3,9 +3,9 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"time"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -46,10 +46,11 @@ func (r *UserRole) UnmarshalJSON(b []byte) error {
 	case "admin":
 		*r = AdminRole
 	default:
-		return errors.New("invalid role")
+		return apperrors.ValidationFailed.Wrap(nil, "不正なロール値です: "+s)
 	}
 	return nil
 }
+
 // -----------------定義終わり--------------------------
 
 // --- OrderStatus 型と定数の定義 ---
@@ -92,10 +93,11 @@ func (s *OrderStatus) UnmarshalJSON(b []byte) error {
 	case "handed":
 		*s = Handed
 	default:
-		return errors.New("invalid status")
+		return apperrors.ValidationFailed.Wrap(nil, "不正なステータス値です: "+str)
 	}
 	return nil
 }
+
 // ---------------定義終わり----------------
 
 type User struct {
