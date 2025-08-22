@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
@@ -12,6 +13,21 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jmoiron/sqlx"
 )
+
+var (
+	secretKey     string
+	secretKeyOnce sync.Once
+)
+
+func getSecretKey() (string, error) {
+	secretKeyOnce.Do(func() {
+		secretKey = os.Getenv("SECRET_KEY")
+	})
+	if secretKey == "" {
+		return "", apperrors.Unknown.Wrap(errors.New("SECRET_KEY environment variable is not set or is empty"), "認証トークンの作成に失敗しました。")
+	}
+	return secretKey, nil
+}
 
 type AuthServicer interface {
 	SignUp(ctx context.Context, req models.AuthenticateRequest) (models.UserResponse, string, error)
@@ -191,12 +207,12 @@ func (s *authService) createToken(ctx context.Context, user models.User) (string
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	secretKey := os.Getenv("SECRET_KEY")
-	if secretKey == "" {
-		return "", apperrors.Unknown.Wrap(errors.New("SECRET_KEY environment variable is not set or is empty"), "認証トークンの作成に失敗しました。")
+	key, err := getSecretKey()
+	if err != nil {
+		return "", err
 	}
 
-	t, err := token.SignedString([]byte(secretKey))
+	t, err := token.SignedString([]byte(key))
 	if err != nil {
 		return "", apperrors.Unknown.Wrap(err, "認証トークンの作成に失敗しました。")
 	}
