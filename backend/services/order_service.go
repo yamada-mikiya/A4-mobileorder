@@ -45,7 +45,7 @@ func generateguestToken() (string, error) {
 // ログイン(サインアップ)できてない状態で注文作成
 func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
 	var result *models.Order
-	err := s.tm.WithTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
+	err := s.tm.WithOrderTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
 		// 商品の検証にはインスタンスフィールドのリポジトリを使用
 		totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, s.itr, shopID, items)
 		if err != nil {
@@ -81,7 +81,7 @@ func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []mode
 // ログイン(サインアップ)できてる状態で注文作成
 func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
 	var result *models.Order
-	err := s.tm.WithTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
+	err := s.tm.WithOrderTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
 		// 商品の検証にはインスタンスフィールドのリポジトリを使用
 		totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, s.itr, shopID, items)
 		if err != nil {

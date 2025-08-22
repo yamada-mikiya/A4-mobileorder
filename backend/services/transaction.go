@@ -11,8 +11,8 @@ import (
 
 // TransactionManager データベーストランザクションを管理するインターフェース
 type TransactionManager interface {
-	WithTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) error
-	WithFullTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error
+	WithOrderTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) error
+	WithUserOrderTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error
 }
 
 // sqlxTransactionManager sqlxを使用してTransactionManagerを実装する構造体
@@ -25,8 +25,8 @@ func NewTransactionManager(db *sqlx.DB) TransactionManager {
 	return &sqlxTransactionManager{db: db}
 }
 
-// WithTransaction 指定された関数をデータベーストランザクション内で実行する
-func (tm *sqlxTransactionManager) WithTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) (err error) {
+// WithOrderTransaction 注文リポジトリを使用してトランザクション内で関数を実行する
+func (tm *sqlxTransactionManager) WithOrderTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) (err error) {
 	tx, err := tm.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
@@ -54,8 +54,8 @@ func (tm *sqlxTransactionManager) WithTransaction(ctx context.Context, fn func(r
 	return fn(txRepo)
 }
 
-// WithFullTransaction 複数のリポジトリを使用して指定された関数をデータベーストランザクション内で実行する
-func (tm *sqlxTransactionManager) WithFullTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) (err error) {
+// WithUserOrderTransaction ユーザーと注文リポジトリを使用してトランザクション内で関数を実行する
+func (tm *sqlxTransactionManager) WithUserOrderTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) (err error) {
 	tx, err := tm.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
@@ -103,12 +103,12 @@ func NewMockTransactionManagerFull(userRepo repositories.UserRepository, orderRe
 	}
 }
 
-// WithTransaction モックリポジトリで関数を実行する（実際のトランザクションなし）
-func (m *MockTransactionManager) WithTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) error {
+// WithOrderTransaction モックリポジトリで関数を実行する（実際のトランザクションなし）
+func (m *MockTransactionManager) WithOrderTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) error {
 	return fn(m.orderRepo)
 }
 
-// WithFullTransaction モックリポジトリで関数を実行する（実際のトランザクションなし）
-func (m *MockTransactionManager) WithFullTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error {
+// WithUserOrderTransaction モックリポジトリで関数を実行する（実際のトランザクションなし）
+func (m *MockTransactionManager) WithUserOrderTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error {
 	return fn(m.userRepo, m.orderRepo)
 }

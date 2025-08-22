@@ -58,7 +58,7 @@ func (s *authService) signUpWithGuestOrderLinking(ctx context.Context, req model
 	var userResponse models.UserResponse
 	var tokenString string
 
-	err := s.txm.WithFullTransaction(ctx, func(txUserRepo repositories.UserRepository, txOrderRepo repositories.OrderRepository) error {
+	err := s.txm.WithUserOrderTransaction(ctx, func(txUserRepo repositories.UserRepository, txOrderRepo repositories.OrderRepository) error {
 		// ユーザー作成（トランザクション内）
 		newUser := &models.User{Email: req.Email}
 		if err := txUserRepo.CreateUser(ctx, newUser); err != nil {
@@ -133,7 +133,7 @@ func (s *authService) logInWithGuestOrderLinking(ctx context.Context, req models
 	var userResponse models.UserResponse
 	var tokenString string
 
-	err := s.txm.WithTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
+	err := s.txm.WithOrderTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
 		// ゲスト注文引き継ぎ（必須処理）
 		if err := txOrderRepo.UpdateUserIDByGuestToken(ctx, req.GuestOrderToken, user.UserID); err != nil {
 			return apperrors.Unknown.Wrap(err, "ゲスト注文の引き継ぎに失敗しました。")

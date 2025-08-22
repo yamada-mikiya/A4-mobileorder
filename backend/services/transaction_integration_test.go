@@ -19,11 +19,11 @@ import (
 === サービス層統合テスト対象関数 ===
 
 【インフラストラクチャレベルテスト】
-- TestTransactionManager_WithFullTransaction_Success: 複数リポジトリを使った正常なトランザクションのコミット
-- TestTransactionManager_WithFullTransaction_Rollback: 複数リポジトリでエラー発生時のロールバック
-- TestTransactionManager_WithFullTransaction_UserCreateFails: ユーザー作成失敗時のロールバック
-- TestTransactionManager_WithTransaction_SingleRepository: 単一リポジトリでの正常なトランザクション
-- TestTransactionManager_WithTransaction_Rollback: 単一リポジトリでエラー発生時のロールバック
+- TestTransactionManager_WithUserOrderTransaction_Success: 複数リポジトリを使った正常なトランザクションのコミット
+- TestTransactionManager_WithUserOrderTransaction_Rollback: 複数リポジトリでエラー発生時のロールバック
+- TestTransactionManager_WithUserOrderTransaction_UserCreateFails: ユーザー作成失敗時のロールバック
+- TestTransactionManager_WithOrderTransaction_SingleRepository: 単一リポジトリでの正常なトランザクション
+- TestTransactionManager_WithOrderTransaction_Rollback: 単一リポジトリでエラー発生時のロールバック
 
 【サービスレベル統合テスト - 実装済み】
 AuthService.SignUp() - TestAuthService_SignUp_Integration
@@ -106,8 +106,8 @@ func setupTestData(t *testing.T, db *sqlx.DB) {
 	}
 }
 
-// TestTransactionManager_WithFullTransaction_Success 複数リポジトリを使った正常なトランザクションのテスト
-func TestTransactionManager_WithFullTransaction_Success(t *testing.T) {
+// TestTransactionManager_WithUserOrderTransaction_Success 複数リポジトリを使った正常なトランザクションのテスト
+func TestTransactionManager_WithUserOrderTransaction_Success(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Integration test skipped with -short flag")
 	}
@@ -129,7 +129,7 @@ func TestTransactionManager_WithFullTransaction_Success(t *testing.T) {
 	}
 
 	var userID int
-	err = txManager.WithFullTransaction(context.Background(), func(userRepo repositories.UserRepository, orderRepo repositories.OrderRepository) error {
+	err = txManager.WithUserOrderTransaction(context.Background(), func(userRepo repositories.UserRepository, orderRepo repositories.OrderRepository) error {
 		// 1. ユーザーを作成
 		user := &models.User{Email: "test@example.com"}
 		if err := userRepo.CreateUser(context.Background(), user); err != nil {
@@ -178,8 +178,8 @@ func TestTransactionManager_WithFullTransaction_Success(t *testing.T) {
 	}
 }
 
-// TestTransactionManager_WithFullTransaction_Rollback エラー発生時のロールバックテスト
-func TestTransactionManager_WithFullTransaction_Rollback(t *testing.T) {
+// TestTransactionManager_WithUserOrderTransaction_Rollback エラー発生時のロールバックテスト
+func TestTransactionManager_WithUserOrderTransaction_Rollback(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Integration test skipped with -short flag")
 	}
@@ -190,7 +190,7 @@ func TestTransactionManager_WithFullTransaction_Rollback(t *testing.T) {
 	txManager := services.NewTransactionManager(db)
 
 	// 存在しないゲストトークンでエラーを意図的に発生させる
-	err := txManager.WithFullTransaction(context.Background(), func(userRepo repositories.UserRepository, orderRepo repositories.OrderRepository) error {
+	err := txManager.WithUserOrderTransaction(context.Background(), func(userRepo repositories.UserRepository, orderRepo repositories.OrderRepository) error {
 		// 1. ユーザーを作成
 		user := &models.User{Email: "rollback-test@example.com"}
 		if err := userRepo.CreateUser(context.Background(), user); err != nil {
@@ -220,8 +220,8 @@ func TestTransactionManager_WithFullTransaction_Rollback(t *testing.T) {
 	}
 }
 
-// TestTransactionManager_WithFullTransaction_UserCreateFails ユーザー作成失敗時のロールバックテスト
-func TestTransactionManager_WithFullTransaction_UserCreateFails(t *testing.T) {
+// TestTransactionManager_WithUserOrderTransaction_UserCreateFails ユーザー作成失敗時のロールバックテスト
+func TestTransactionManager_WithUserOrderTransaction_UserCreateFails(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Integration test skipped with -short flag")
 	}
@@ -243,7 +243,7 @@ func TestTransactionManager_WithFullTransaction_UserCreateFails(t *testing.T) {
 	}
 
 	// 重複メールでエラーを発生させる
-	err = txManager.WithFullTransaction(context.Background(), func(userRepo repositories.UserRepository, orderRepo repositories.OrderRepository) error {
+	err = txManager.WithUserOrderTransaction(context.Background(), func(userRepo repositories.UserRepository, orderRepo repositories.OrderRepository) error {
 		// 重複メールでユーザー作成を試行
 		user := &models.User{Email: "duplicate@example.com"}
 		return userRepo.CreateUser(context.Background(), user)
@@ -268,8 +268,8 @@ func TestTransactionManager_WithFullTransaction_UserCreateFails(t *testing.T) {
 	}
 }
 
-// TestTransactionManager_WithTransaction_SingleRepository 単一リポジトリでのトランザクションテスト
-func TestTransactionManager_WithTransaction_SingleRepository(t *testing.T) {
+// TestTransactionManager_WithOrderTransaction_SingleRepository 単一リポジトリでのトランザクションテスト
+func TestTransactionManager_WithOrderTransaction_SingleRepository(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Integration test skipped with -short flag")
 	}
@@ -280,7 +280,7 @@ func TestTransactionManager_WithTransaction_SingleRepository(t *testing.T) {
 	txManager := services.NewTransactionManager(db)
 
 	var orderID int
-	err := txManager.WithTransaction(context.Background(), func(orderRepo repositories.OrderRepository) error {
+	err := txManager.WithOrderTransaction(context.Background(), func(orderRepo repositories.OrderRepository) error {
 		// テスト用注文を作成
 		order := &models.Order{
 			ShopID:          1,
@@ -324,8 +324,8 @@ func TestTransactionManager_WithTransaction_SingleRepository(t *testing.T) {
 	}
 }
 
-// TestTransactionManager_WithTransaction_Rollback 単一リポジトリでのロールバックテスト
-func TestTransactionManager_WithTransaction_Rollback(t *testing.T) {
+// TestTransactionManager_WithOrderTransaction_Rollback 単一リポジトリでのロールバックテスト
+func TestTransactionManager_WithOrderTransaction_Rollback(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Integration test skipped with -short flag")
 	}
@@ -336,7 +336,7 @@ func TestTransactionManager_WithTransaction_Rollback(t *testing.T) {
 	txManager := services.NewTransactionManager(db)
 
 	// 意図的にエラーを発生させる
-	err := txManager.WithTransaction(context.Background(), func(orderRepo repositories.OrderRepository) error {
+	err := txManager.WithOrderTransaction(context.Background(), func(orderRepo repositories.OrderRepository) error {
 		// 正常な注文作成
 		order := &models.Order{
 			ShopID:          1,

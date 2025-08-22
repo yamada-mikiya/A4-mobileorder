@@ -109,20 +109,20 @@ func (m *OrderRepositoryMockForOrder) DeleteOrderByIDAndShopID(ctx context.Conte
 
 // MockTransactionManager テスト用のTransactionManagerモック
 type MockTransactionManager struct {
-	WithTransactionFunc     func(ctx context.Context, fn func(repositories.OrderRepository) error) error
-	WithFullTransactionFunc func(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error
+	WithOrderTransactionFunc     func(ctx context.Context, fn func(repositories.OrderRepository) error) error
+	WithUserOrderTransactionFunc func(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error
 }
 
-func (m *MockTransactionManager) WithTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) error {
-	if m.WithTransactionFunc != nil {
-		return m.WithTransactionFunc(ctx, fn)
+func (m *MockTransactionManager) WithOrderTransaction(ctx context.Context, fn func(repositories.OrderRepository) error) error {
+	if m.WithOrderTransactionFunc != nil {
+		return m.WithOrderTransactionFunc(ctx, fn)
 	}
 	panic("not implemented")
 }
 
-func (m *MockTransactionManager) WithFullTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error {
-	if m.WithFullTransactionFunc != nil {
-		return m.WithFullTransactionFunc(ctx, fn)
+func (m *MockTransactionManager) WithUserOrderTransaction(ctx context.Context, fn func(repositories.UserRepository, repositories.OrderRepository) error) error {
+	if m.WithUserOrderTransactionFunc != nil {
+		return m.WithUserOrderTransactionFunc(ctx, fn)
 	}
 	panic("not implemented")
 }
@@ -235,7 +235,7 @@ func TestOrderService_GetUserOrders(t *testing.T) {
 
 			// サービス作成 - NewOrderServiceForTestを使用してモックTransactionManagerを渡す
 			mockTM := &MockTransactionManager{}
-			mockTM.WithTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
+			mockTM.WithOrderTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
 				// モックorderRepoを直接渡す
 				return fn(orderRepo)
 			}
@@ -359,7 +359,7 @@ func TestOrderService_GetOrderStatus(t *testing.T) {
 
 			// サービス作成 - NewOrderServiceForTestを使用してモックTransactionManagerを渡す
 			mockTM := &MockTransactionManager{}
-			mockTM.WithTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
+			mockTM.WithOrderTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
 				// モックorderRepoを直接渡す
 				return fn(orderRepo)
 			}
@@ -477,7 +477,7 @@ func TestOrderService_CreateOrder(t *testing.T) {
 
 			// TransactionManagerモック
 			mockTM := &MockTransactionManager{}
-			mockTM.WithTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
+			mockTM.WithOrderTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
 				return fn(orderRepo)
 			}
 
@@ -615,7 +615,7 @@ func TestOrderService_CreateAuthenticatedOrder(t *testing.T) {
 
 			// TransactionManagerモック
 			mockTM := &MockTransactionManager{}
-			mockTM.WithTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
+			mockTM.WithOrderTransactionFunc = func(ctx context.Context, fn func(repositories.OrderRepository) error) error {
 				return fn(orderRepo)
 			}
 

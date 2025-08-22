@@ -87,7 +87,7 @@ func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders
 }
 
 func (s *adminService) UpdateOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error {
-	return s.txm.WithTransaction(ctx, func(txRepo repositories.OrderRepository) error {
+	return s.txm.WithOrderTransaction(ctx, func(txRepo repositories.OrderRepository) error {
 		// 注文の確認とステータス更新を同一トランザクション内で実行
 		currentOrder, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
 		if err != nil {
@@ -109,7 +109,7 @@ func (s *adminService) UpdateOrderStatus(ctx context.Context, adminShopID int, t
 }
 
 func (s *adminService) DeleteOrder(ctx context.Context, adminShopID int, targetOrderID int) error {
-	return s.txm.WithTransaction(ctx, func(txRepo repositories.OrderRepository) error {
+	return s.txm.WithOrderTransaction(ctx, func(txRepo repositories.OrderRepository) error {
 		// 注文の存在確認と削除を同一トランザクション内で実行
 		_, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
 		if err != nil {
