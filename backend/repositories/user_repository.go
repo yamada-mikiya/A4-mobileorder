@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/A4-dev-team/mobileorder.git/models"
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
@@ -16,10 +16,10 @@ type UserRepository interface {
 }
 
 type userRepository struct {
-	db *sqlx.DB
+	db DBTX
 }
 
-func NewUserRepository(db *sqlx.DB) UserRepository {
+func NewUserRepository(db DBTX) UserRepository {
 	return &userRepository{db}
 }
 
@@ -34,9 +34,9 @@ func (r *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 	)
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
-			return errors.New("email already exists")
+			return apperrors.Conflict.Wrap(err, "このメールアドレスは既に使用されています。")
 		}
-		return err
+		return apperrors.InsertDataFailed.Wrap(err, "ユーザーの作成に失敗しました。")
 	}
 	return nil
 }
@@ -45,11 +45,10 @@ func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (mode
 	user := models.User{}
 	query := "SELECT user_id, email, role, created_at, updated_at FROM users WHERE email = $1"
 	if err := r.db.GetContext(ctx, &user, query, email); err != nil {
-		if err == sql.ErrNoRows {
-			return models.User{}, errors.New("user not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.User{}, apperrors.NoData.Wrap(err, "指定されたメールアドレスのユーザーは見つかりませんでした。")
 		}
-		return models.User{}, err
+		return models.User{}, apperrors.GetDataFailed.Wrap(err, "ユーザー情報の取得に失敗しました。")
 	}
 	return user, nil
 }
-

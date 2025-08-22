@@ -50,6 +50,7 @@ func (r *UserRole) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+// -----------------定義終わり--------------------------
 
 // --- OrderStatus 型と定数の定義 ---
 type OrderStatus int
@@ -95,6 +96,7 @@ func (s *OrderStatus) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+// ---------------定義終わり----------------
 
 type User struct {
 	UserID    int       `json:"user_id" db:"user_id"`
@@ -116,14 +118,13 @@ func (c *JwtCustomClaims) Valid() error {
 }
 
 type Shop struct {
-	ShopID      int       `json:"shop_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Location    string    `json:"location"`
-	IsOpen      bool      `json:"is_open"`
-	AdminUserID *int      `json:"admin_user_id,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ShopID      int       `json:"shop_id" db:"shop_id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Location    string    `json:"location" db:"location"`
+	IsOpen      bool      `json:"is_open" db:"is_open"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type Order struct {
@@ -138,9 +139,9 @@ type Order struct {
 	UpdatedAt       time.Time      `db:"updated_at"`
 }
 
-type Product struct {
-	ProductID   int       `json:"product_id" db:"product_id"`
-	ProductName string    `json:"product_name" db:"product_name"`
+type Item struct {
+	ItemID      int       `json:"item_id" db:"item_id"`
+	ItemName    string    `json:"item_name" db:"item_name"`
 	Description string    `json:"description" db:"description"`
 	Price       float64   `json:"price" db:"price"`
 	IsAvailable bool      `json:"is_available" db:"is_available"`
@@ -148,12 +149,19 @@ type Product struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-type OrderProduct struct {
-	OrderProductID int       `db:"order_product_id"`
-	OrderID        int       `db:"order_id"`
-	ProductID      int       `db:"product_id"`
-	Quantity       int       `db:"quantity"`
-	PriceAtOrder   float64   `db:"price_at_order"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+type OrderItem struct {
+	OrderItemID  int       `db:"order_item_id"`
+	OrderID      int       `db:"order_id"`
+	ItemID       int       `db:"item_id"`
+	Quantity     int       `db:"quantity"`
+	PriceAtOrder float64   `db:"price_at_order"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+type ShopItem struct {
+	ShopID    int       `db:"shop_id"`
+	ItemID    int       `db:"item_id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
