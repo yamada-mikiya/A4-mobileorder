@@ -21,11 +21,10 @@ type OrderController interface {
 
 type orderController struct {
 	s services.OrderServicer
-	v validators.Validator
 }
 
-func NewOrderController(s services.OrderServicer, v validators.Validator) OrderController {
-	return &orderController{s, v}
+func NewOrderController(s services.OrderServicer) OrderController {
+	return &orderController{s}
 }
 
 // CreateAuthenticatedOrderHandler は認証済みユーザーの注文を作成します。
@@ -48,7 +47,8 @@ func (c *orderController) CreateAuthenticatedOrderHandler(ctx echo.Context) erro
 		return apperrors.ReqBodyDecodeFailed.Wrap(err, "リクエストの形式が不正です。")
 	}
 
-	if err := c.v.Validate(reqItem); err != nil {
+	validator := validators.NewValidator[models.CreateOrderRequest]()
+	if err := validator.Validate(reqItem); err != nil {
 		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 
@@ -95,7 +95,8 @@ func (c *orderController) CreateGuestOrderHandler(ctx echo.Context) error {
 	if err := ctx.Bind(&reqItem); err != nil {
 		return apperrors.ReqBodyDecodeFailed.Wrap(err, "リクエストの形式が不正です。")
 	}
-	if err := c.v.Validate(reqItem); err != nil {
+	validator := validators.NewValidator[models.CreateOrderRequest]()
+	if err := validator.Validate(reqItem); err != nil {
 		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 

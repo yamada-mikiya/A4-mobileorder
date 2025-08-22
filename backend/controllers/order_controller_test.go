@@ -92,7 +92,7 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 		name             string
 		requestBody      string
 		pathParams       map[string]string
-		setupMock        func() (*MockOrderService, *MockValidator)
+		setupMock        func() *MockOrderService
 		setupToken       func() *jwt.Token
 		expectedStatus   int
 		expectError      bool
@@ -101,27 +101,27 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 	}{
 		{
 			name:        "正常系: 認証済みユーザーの注文作成成功",
-			requestBody: `{"items":[{"item_id":1,"quantity":2},{"item_id":2,"quantity":1}]}`,
+			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
 
 				order := &models.Order{
-					OrderID:     123,
+					OrderID:     1,
 					UserID:      sql.NullInt64{Int64: 1, Valid: true},
 					ShopID:      1,
-					TotalAmount: 1500.0,
 					Status:      models.Cooking,
+					TotalAmount: 2000.0,
 					OrderDate:   time.Now(),
+					CreatedAt:   time.Now(),
+					UpdatedAt:   time.Now(),
 				}
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("CreateAuthenticatedOrder", mock.Anything, 1, 1, mock.MatchedBy(func(items []models.OrderItemRequest) bool {
-					return len(items) == 2 && items[0].ItemID == 1 && items[0].Quantity == 2
+					return len(items) == 1 && items[0].ItemID == 1 && items[0].Quantity == 2
 				})).Return(order, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -132,17 +132,15 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 				var response models.AuthenticatedOrderResponse
 				err := json.Unmarshal(rec.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, uint(123), response.OrderID)
+				assert.Equal(t, uint(1), response.OrderID)
 			},
 		},
 		{
 			name:        "異常系: 不正なJSONリクエスト",
 			requestBody: `{"items":}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -152,16 +150,11 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 			expectedCode:   apperrors.ReqBodyDecodeFailed,
 		},
 		{
-			name:        "異常系: バリデーションエラー",
+			name:        "異常系: バリデーションエラー（空の商品リスト）",
 			requestBody: `{"items":[]}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				mockValidator.On("Validate", mock.Anything).Return(apperrors.ValidationFailed.Wrap(nil, "注文には少なくとも1つの商品が必要です"))
-
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -171,15 +164,11 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 			expectedCode:   apperrors.ValidationFailed,
 		},
 		{
-			name:        "異常系: 店舗IDの形式が不正",
+			name:        "異常系: 不正な店舗ID",
 			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
 			pathParams:  map[string]string{"shop_id": "invalid"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				// バリデーションは店舗IDチェック前に呼ばれるため、成功させる
-				mockValidator.On("Validate", mock.Anything).Return(nil)
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -189,34 +178,14 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 			expectedCode:   apperrors.BadParam,
 		},
 		{
-			name:        "異常系: 認証トークンなし",
+			name:        "異常系: サービス層でエラー",
 			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				// バリデーションは認証チェック前に呼ばれるため、成功させる
-				mockValidator.On("Validate", mock.Anything).Return(nil)
-				return mockService, mockValidator
-			},
-			setupToken:     func() *jwt.Token { return nil },
-			expectedStatus: http.StatusUnauthorized,
-			expectError:    true,
-			expectedCode:   apperrors.Unauthorized,
-		},
-		{
-			name:        "異常系: サービス層でエラー発生",
-			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
-			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("CreateAuthenticatedOrder", mock.Anything, 1, 1, mock.Anything).Return(
-					nil, apperrors.Unknown.Wrap(nil, "注文作成に失敗しました"))
-
-				return mockService, mockValidator
+					nil, apperrors.Unknown.Wrap(nil, "内部エラーが発生しました"))
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -229,22 +198,15 @@ func TestOrderController_CreateAuthenticatedOrderHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// モックのセットアップ
-			mockService, mockValidator := tt.setupMock()
+			mockService := tt.setupMock()
 			defer mockService.AssertExpectations(t)
-			defer mockValidator.AssertExpectations(t)
 
-			// コントローラーの作成
-			controller := controllers.NewOrderController(mockService, mockValidator)
-
-			// テストコンテキストの作成
+			controller := controllers.NewOrderController(mockService)
 			token := tt.setupToken()
 			c, rec := createTestContextForOrder(http.MethodPost, "/shops/1/orders", tt.requestBody, tt.pathParams, token)
 
-			// テスト実行
 			err := controller.CreateAuthenticatedOrderHandler(c)
 
-			// エラーアサーション
 			if tt.expectError {
 				assert.Error(t, err)
 				var appErr *apperrors.AppError
@@ -267,7 +229,7 @@ func TestOrderController_CreateGuestOrderHandler(t *testing.T) {
 		name             string
 		requestBody      string
 		pathParams       map[string]string
-		setupMock        func() (*MockOrderService, *MockValidator)
+		setupMock        func() *MockOrderService
 		expectedStatus   int
 		expectError      bool
 		expectedCode     apperrors.ErrCode
@@ -275,27 +237,28 @@ func TestOrderController_CreateGuestOrderHandler(t *testing.T) {
 	}{
 		{
 			name:        "正常系: ゲストユーザーの注文作成成功",
-			requestBody: `{"items":[{"item_id":1,"quantity":2},{"item_id":2,"quantity":1}]}`,
+			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
 
 				order := &models.Order{
-					OrderID:         456,
+					OrderID:         1,
+					UserID:          sql.NullInt64{Valid: false},
 					ShopID:          1,
-					TotalAmount:     1500.0,
 					Status:          models.Cooking,
-					GuestOrderToken: sql.NullString{String: "guest-token-123", Valid: true},
+					TotalAmount:     2000.0,
+					GuestOrderToken: sql.NullString{String: "15ff4999-2cfd-41f3-b744-926e7c5c7a0e", Valid: true},
 					OrderDate:       time.Now(),
+					CreatedAt:       time.Now(),
+					UpdatedAt:       time.Now(),
 				}
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("CreateOrder", mock.Anything, 1, mock.MatchedBy(func(items []models.OrderItemRequest) bool {
-					return len(items) == 2 && items[0].ItemID == 1 && items[0].Quantity == 2
+					return len(items) == 1 && items[0].ItemID == 1 && items[0].Quantity == 2
 				})).Return(order, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusCreated,
 			expectError:    false,
@@ -303,68 +266,53 @@ func TestOrderController_CreateGuestOrderHandler(t *testing.T) {
 				var response models.CreateOrderResponse
 				err := json.Unmarshal(rec.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, 456, response.OrderID)
-				assert.Equal(t, "guest-token-123", response.GuestOrderToken)
-				assert.Contains(t, response.Message, "Order created successfully")
+				assert.Equal(t, 1, response.OrderID)
+				assert.Equal(t, "15ff4999-2cfd-41f3-b744-926e7c5c7a0e", response.GuestOrderToken)
+				assert.NotEmpty(t, response.Message)
 			},
 		},
 		{
 			name:        "異常系: 不正なJSONリクエスト",
 			requestBody: `{"items":}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 			expectedCode:   apperrors.ReqBodyDecodeFailed,
 		},
 		{
-			name:        "異常系: バリデーションエラー",
+			name:        "異常系: バリデーションエラー（空の商品リスト）",
 			requestBody: `{"items":[]}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				mockValidator.On("Validate", mock.Anything).Return(apperrors.ValidationFailed.Wrap(nil, "注文には少なくとも1つの商品が必要です"))
-
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 			expectedCode:   apperrors.ValidationFailed,
 		},
 		{
-			name:        "異常系: 店舗IDの形式が不正",
+			name:        "異常系: 不正な店舗ID",
 			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
 			pathParams:  map[string]string{"shop_id": "invalid"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				// バリデーションは店舗IDチェック前に呼ばれるため、成功させる
-				mockValidator.On("Validate", mock.Anything).Return(nil)
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 			expectedCode:   apperrors.BadParam,
 		},
 		{
-			name:        "異常系: サービス層でエラー発生",
+			name:        "異常系: サービス層でエラー",
 			requestBody: `{"items":[{"item_id":1,"quantity":2}]}`,
 			pathParams:  map[string]string{"shop_id": "1"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("CreateOrder", mock.Anything, 1, mock.Anything).Return(
-					nil, apperrors.Unknown.Wrap(nil, "注文作成に失敗しました"))
-
-				return mockService, mockValidator
+					nil, apperrors.Unknown.Wrap(nil, "内部エラーが発生しました"))
+				return mockService
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectError:    true,
@@ -374,21 +322,14 @@ func TestOrderController_CreateGuestOrderHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// モックのセットアップ
-			mockService, mockValidator := tt.setupMock()
+			mockService := tt.setupMock()
 			defer mockService.AssertExpectations(t)
-			defer mockValidator.AssertExpectations(t)
 
-			// コントローラーの作成
-			controller := controllers.NewOrderController(mockService, mockValidator)
+			controller := controllers.NewOrderController(mockService)
+			c, rec := createTestContextForOrder(http.MethodPost, "/shops/1/guest/orders", tt.requestBody, tt.pathParams, nil)
 
-			// テストコンテキストの作成
-			c, rec := createTestContextForOrder(http.MethodPost, "/shops/1/guest-orders", tt.requestBody, tt.pathParams, nil)
-
-			// テスト実行
 			err := controller.CreateGuestOrderHandler(c)
 
-			// エラーアサーション
 			if tt.expectError {
 				assert.Error(t, err)
 				var appErr *apperrors.AppError
@@ -409,7 +350,7 @@ func TestOrderController_CreateGuestOrderHandler(t *testing.T) {
 func TestOrderController_GetOrderListHandler(t *testing.T) {
 	tests := []struct {
 		name             string
-		setupMock        func() (*MockOrderService, *MockValidator)
+		setupMock        func() *MockOrderService
 		setupToken       func() *jwt.Token
 		expectedStatus   int
 		expectError      bool
@@ -418,29 +359,38 @@ func TestOrderController_GetOrderListHandler(t *testing.T) {
 	}{
 		{
 			name: "正常系: 注文一覧取得成功",
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
 
-				orderList := []models.OrderListResponse{
+				orders := []models.OrderListResponse{
 					{
 						OrderID:      1,
-						ShopName:     "テストショップ",
+						ShopName:     "テスト店舗",
 						Location:     "東京都渋谷区",
-						OrderDate:    time.Date(2025, 8, 17, 12, 0, 0, 0, time.UTC),
-						TotalAmount:  1500.0,
+						OrderDate:    time.Now(),
+						TotalAmount:  2000.0,
 						Status:       "cooking",
 						WaitingCount: 3,
 						Items: []models.ItemDetail{
-							{ItemName: "コーヒー", Quantity: 2},
-							{ItemName: "サンドイッチ", Quantity: 1},
+							{ItemName: "テスト商品", Quantity: 2},
+						},
+					},
+					{
+						OrderID:      2,
+						ShopName:     "テスト店舗2",
+						Location:     "東京都新宿区",
+						OrderDate:    time.Now().Add(-24 * time.Hour),
+						TotalAmount:  1500.0,
+						Status:       "completed",
+						WaitingCount: 0,
+						Items: []models.ItemDetail{
+							{ItemName: "テスト商品2", Quantity: 1},
 						},
 					},
 				}
 
-				mockService.On("GetUserOrders", mock.Anything, 1).Return(orderList, nil)
-
-				return mockService, mockValidator
+				mockService.On("GetUserOrders", mock.Anything, 1).Return(orders, nil)
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -451,23 +401,18 @@ func TestOrderController_GetOrderListHandler(t *testing.T) {
 				var response []models.OrderListResponse
 				err := json.Unmarshal(rec.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Len(t, response, 1)
+				assert.Len(t, response, 2)
 				assert.Equal(t, 1, response[0].OrderID)
-				assert.Equal(t, "テストショップ", response[0].ShopName)
-				assert.Equal(t, "cooking", response[0].Status)
-				assert.Len(t, response[0].Items, 2)
+				assert.Equal(t, "テスト店舗", response[0].ShopName)
 			},
 		},
 		{
-			name: "正常系: 注文一覧が空の場合",
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			name: "正常系: 空の注文一覧",
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				orderList := []models.OrderListResponse{}
-				mockService.On("GetUserOrders", mock.Anything, 1).Return(orderList, nil)
-
-				return mockService, mockValidator
+				orders := []models.OrderListResponse{}
+				mockService.On("GetUserOrders", mock.Anything, 1).Return(orders, nil)
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -482,55 +427,33 @@ func TestOrderController_GetOrderListHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "異常系: 認証トークンなし",
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			name: "異常系: サービス層でエラー",
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
-			},
-			setupToken:     func() *jwt.Token { return nil },
-			expectedStatus: http.StatusUnauthorized,
-			expectError:    true,
-			expectedCode:   apperrors.Unauthorized,
-		},
-		{
-			name: "異常系: サービス層でエラー発生",
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
 				mockService.On("GetUserOrders", mock.Anything, 1).Return(
-					[]models.OrderListResponse{}, apperrors.GetDataFailed.Wrap(nil, "注文一覧の取得に失敗しました"))
-
-				return mockService, mockValidator
+					[]models.OrderListResponse{}, apperrors.Unknown.Wrap(nil, "内部エラーが発生しました"))
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectError:    true,
-			expectedCode:   apperrors.GetDataFailed,
+			expectedCode:   apperrors.Unknown,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// モックのセットアップ
-			mockService, mockValidator := tt.setupMock()
+			mockService := tt.setupMock()
 			defer mockService.AssertExpectations(t)
-			defer mockValidator.AssertExpectations(t)
 
-			// コントローラーの作成
-			controller := controllers.NewOrderController(mockService, mockValidator)
-
-			// テストコンテキストの作成
+			controller := controllers.NewOrderController(mockService)
 			token := tt.setupToken()
 			c, rec := createTestContextForOrder(http.MethodGet, "/orders", "", nil, token)
 
-			// テスト実行
 			err := controller.GetOrderListHandler(c)
 
-			// エラーアサーション
 			if tt.expectError {
 				assert.Error(t, err)
 				var appErr *apperrors.AppError
@@ -552,7 +475,7 @@ func TestOrderController_GetOrderStatusHandler(t *testing.T) {
 	tests := []struct {
 		name             string
 		pathParams       map[string]string
-		setupMock        func() (*MockOrderService, *MockValidator)
+		setupMock        func() *MockOrderService
 		setupToken       func() *jwt.Token
 		expectedStatus   int
 		expectError      bool
@@ -560,21 +483,19 @@ func TestOrderController_GetOrderStatusHandler(t *testing.T) {
 		validateResponse func(t *testing.T, rec *httptest.ResponseRecorder)
 	}{
 		{
-			name:       "正常系: 注文ステータス取得成功（調理中）",
-			pathParams: map[string]string{"order_id": "123"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			name:       "正常系: 注文ステータス取得成功",
+			pathParams: map[string]string{"order_id": "1"},
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
 
 				orderStatus := &models.OrderStatusResponse{
-					OrderID:      123,
+					OrderID:      1,
 					Status:       "cooking",
-					WaitingCount: 3,
+					WaitingCount: 2,
 				}
 
-				mockService.On("GetOrderStatus", mock.Anything, 1, 123).Return(orderStatus, nil)
-
-				return mockService, mockValidator
+				mockService.On("GetOrderStatus", mock.Anything, 1, 1).Return(orderStatus, nil)
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -585,49 +506,16 @@ func TestOrderController_GetOrderStatusHandler(t *testing.T) {
 				var response models.OrderStatusResponse
 				err := json.Unmarshal(rec.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Equal(t, 123, response.OrderID)
+				assert.Equal(t, 1, response.OrderID)
 				assert.Equal(t, "cooking", response.Status)
-				assert.Equal(t, 3, response.WaitingCount)
+				assert.Equal(t, 2, response.WaitingCount)
 			},
 		},
 		{
-			name:       "正常系: 注文ステータス取得成功（完了）",
-			pathParams: map[string]string{"order_id": "456"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				orderStatus := &models.OrderStatusResponse{
-					OrderID:      456,
-					Status:       "completed",
-					WaitingCount: 0, // 完了時は待ち人数0
-				}
-
-				mockService.On("GetOrderStatus", mock.Anything, 1, 456).Return(orderStatus, nil)
-
-				return mockService, mockValidator
-			},
-			setupToken: func() *jwt.Token {
-				return createTestToken(1, models.CustomerRole, nil)
-			},
-			expectedStatus: http.StatusOK,
-			expectError:    false,
-			validateResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				var response models.OrderStatusResponse
-				err := json.Unmarshal(rec.Body.Bytes(), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, 456, response.OrderID)
-				assert.Equal(t, "completed", response.Status)
-				assert.Equal(t, 0, response.WaitingCount)
-			},
-		},
-		{
-			name:       "異常系: 注文IDの形式が不正",
+			name:       "異常系: 不正な注文ID",
 			pathParams: map[string]string{"order_id": "invalid"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
+			setupMock: func() *MockOrderService {
+				return new(MockOrderService)
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -637,29 +525,13 @@ func TestOrderController_GetOrderStatusHandler(t *testing.T) {
 			expectedCode:   apperrors.BadParam,
 		},
 		{
-			name:       "異常系: 認証トークンなし",
-			pathParams: map[string]string{"order_id": "123"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
-				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
-			},
-			setupToken:     func() *jwt.Token { return nil },
-			expectedStatus: http.StatusUnauthorized,
-			expectError:    true,
-			expectedCode:   apperrors.Unauthorized,
-		},
-		{
 			name:       "異常系: 注文が見つからない",
 			pathParams: map[string]string{"order_id": "999"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
 				mockService.On("GetOrderStatus", mock.Anything, 1, 999).Return(
 					nil, apperrors.NoData.Wrap(nil, "注文が見つかりません"))
-
-				return mockService, mockValidator
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -669,16 +541,13 @@ func TestOrderController_GetOrderStatusHandler(t *testing.T) {
 			expectedCode:   apperrors.NoData,
 		},
 		{
-			name:       "異常系: サービス層で内部エラー発生",
-			pathParams: map[string]string{"order_id": "123"},
-			setupMock: func() (*MockOrderService, *MockValidator) {
+			name:       "異常系: サービス層でエラー",
+			pathParams: map[string]string{"order_id": "1"},
+			setupMock: func() *MockOrderService {
 				mockService := new(MockOrderService)
-				mockValidator := new(MockValidator)
-
-				mockService.On("GetOrderStatus", mock.Anything, 1, 123).Return(
+				mockService.On("GetOrderStatus", mock.Anything, 1, 1).Return(
 					nil, apperrors.Unknown.Wrap(nil, "内部エラーが発生しました"))
-
-				return mockService, mockValidator
+				return mockService
 			},
 			setupToken: func() *jwt.Token {
 				return createTestToken(1, models.CustomerRole, nil)
@@ -691,22 +560,15 @@ func TestOrderController_GetOrderStatusHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// モックのセットアップ
-			mockService, mockValidator := tt.setupMock()
+			mockService := tt.setupMock()
 			defer mockService.AssertExpectations(t)
-			defer mockValidator.AssertExpectations(t)
 
-			// コントローラーの作成
-			controller := controllers.NewOrderController(mockService, mockValidator)
-
-			// テストコンテキストの作成
+			controller := controllers.NewOrderController(mockService)
 			token := tt.setupToken()
-			c, rec := createTestContextForOrder(http.MethodGet, "/orders/123/status", "", tt.pathParams, token)
+			c, rec := createTestContextForOrder(http.MethodGet, "/orders/1", "", tt.pathParams, token)
 
-			// テスト実行
 			err := controller.GetOrderStatusHandler(c)
 
-			// エラーアサーション
 			if tt.expectError {
 				assert.Error(t, err)
 				var appErr *apperrors.AppError

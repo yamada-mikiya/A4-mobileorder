@@ -31,8 +31,8 @@ func (m *MockAuthService) LogIn(ctx context.Context, req models.AuthenticateRequ
 	return args.Get(0).(models.UserResponse), args.String(1), args.Error(2)
 }
 
-// createTestContextForAuth はAuth用のEchoコンテキストを作成します
-func createTestContextForAuth(method, path string, body string) (echo.Context, *httptest.ResponseRecorder) {
+// createTestContextForAuth は認証関連のテスト用のEchoコンテキストを作成します
+func createTestContextForAuth(method, path, body string) (echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	var req *http.Request
 	if body != "" {
@@ -51,7 +51,7 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 	tests := []struct {
 		name             string
 		requestBody      string
-		setupMock        func() (*MockAuthService, *MockValidator)
+		setupMock        func() *MockAuthService
 		expectedStatus   int
 		expectError      bool
 		expectedCode     apperrors.ErrCode
@@ -60,9 +60,8 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 		{
 			name:        "正常系: 新規ユーザー登録成功",
 			requestBody: `{"email":"test@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
 				userResponse := models.UserResponse{
 					UserID: 1,
@@ -71,12 +70,11 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 				}
 				token := "test-jwt-token"
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("SignUp", mock.Anything, mock.MatchedBy(func(req models.AuthenticateRequest) bool {
 					return req.Email == "test@example.com"
 				})).Return(userResponse, token, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusCreated,
 			expectError:    false,
@@ -91,11 +89,10 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 			},
 		},
 		{
-			name:        "正常系: ゲストトークン付きユーザー登録成功",
-			requestBody: `{"email":"test@example.com","guest_order_token":"guest-token-123"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			name:        "正常系: ゲストトークン付き新規ユーザー登録成功",
+			requestBody: `{"email":"test@example.com","guest_order_token":"15ff4999-2cfd-41f3-b744-926e7c5c7a0e"}`,
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
 				userResponse := models.UserResponse{
 					UserID: 1,
@@ -104,12 +101,11 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 				}
 				token := "test-jwt-token"
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("SignUp", mock.Anything, mock.MatchedBy(func(req models.AuthenticateRequest) bool {
-					return req.Email == "test@example.com" && req.GuestOrderToken == "guest-token-123"
+					return req.Email == "test@example.com" && req.GuestOrderToken == "15ff4999-2cfd-41f3-b744-926e7c5c7a0e"
 				})).Return(userResponse, token, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusCreated,
 			expectError:    false,
@@ -124,42 +120,35 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 		{
 			name:        "異常系: 不正なJSONリクエスト",
 			requestBody: `{"email":}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 			expectedCode:   apperrors.ReqBodyDecodeFailed,
 		},
 		{
-			name:        "異常系: バリデーションエラー",
+			name:        "異常系: バリデーションエラー（不正なメールアドレス）",
 			requestBody: `{"email":"invalid-email"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
-
-				mockValidator.On("Validate", mock.Anything).Return(apperrors.ValidationFailed.Wrap(nil, "メールアドレスの形式が正しくありません"))
-
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 			expectedCode:   apperrors.ValidationFailed,
 		},
 		{
-			name:        "異常系: サービス層でエラー（メールアドレス重複）",
-			requestBody: `{"email":"duplicate@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			name:        "異常系: 既に存在するユーザー",
+			requestBody: `{"email":"existing@example.com"}`,
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("SignUp", mock.Anything, mock.Anything).Return(
-					models.UserResponse{}, "", apperrors.Conflict.Wrap(nil, "このメールアドレスは既に登録されています"))
+					models.UserResponse{}, "", apperrors.Conflict.Wrap(nil, "指定されたメールアドレスは既に使用されています"))
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusConflict,
 			expectError:    true,
@@ -168,15 +157,13 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 		{
 			name:        "異常系: サービス層で内部エラー",
 			requestBody: `{"email":"test@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("SignUp", mock.Anything, mock.Anything).Return(
 					models.UserResponse{}, "", apperrors.Unknown.Wrap(nil, "内部エラーが発生しました"))
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectError:    true,
@@ -187,12 +174,11 @@ func TestAuthController_SignUpHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// モックのセットアップ
-			mockService, mockValidator := tt.setupMock()
+			mockService := tt.setupMock()
 			defer mockService.AssertExpectations(t)
-			defer mockValidator.AssertExpectations(t)
 
 			// コントローラーの作成
-			controller := controllers.NewAuthController(mockService, mockValidator)
+			controller := controllers.NewAuthController(mockService)
 
 			// テストコンテキストの作成
 			c, rec := createTestContextForAuth(http.MethodPost, "/auth/signup", tt.requestBody)
@@ -222,7 +208,7 @@ func TestAuthController_LogInHandler(t *testing.T) {
 	tests := []struct {
 		name             string
 		requestBody      string
-		setupMock        func() (*MockAuthService, *MockValidator)
+		setupMock        func() *MockAuthService
 		expectedStatus   int
 		expectError      bool
 		expectedCode     apperrors.ErrCode
@@ -231,9 +217,8 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		{
 			name:        "正常系: ログイン成功",
 			requestBody: `{"email":"test@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
 				userResponse := models.UserResponse{
 					UserID: 1,
@@ -242,12 +227,11 @@ func TestAuthController_LogInHandler(t *testing.T) {
 				}
 				token := "test-jwt-token"
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("LogIn", mock.Anything, mock.MatchedBy(func(req models.AuthenticateRequest) bool {
 					return req.Email == "test@example.com"
 				})).Return(userResponse, token, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusOK,
 			expectError:    false,
@@ -263,10 +247,9 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		},
 		{
 			name:        "正常系: ゲストトークン付きログイン成功",
-			requestBody: `{"email":"test@example.com","guest_order_token":"guest-token-123"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			requestBody: `{"email":"test@example.com","guest_order_token":"15ff4999-2cfd-41f3-b744-926e7c5c7a0e"}`,
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
 				userResponse := models.UserResponse{
 					UserID: 1,
@@ -275,12 +258,11 @@ func TestAuthController_LogInHandler(t *testing.T) {
 				}
 				token := "test-jwt-token"
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("LogIn", mock.Anything, mock.MatchedBy(func(req models.AuthenticateRequest) bool {
-					return req.Email == "test@example.com" && req.GuestOrderToken == "guest-token-123"
+					return req.Email == "test@example.com" && req.GuestOrderToken == "15ff4999-2cfd-41f3-b744-926e7c5c7a0e"
 				})).Return(userResponse, token, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusOK,
 			expectError:    false,
@@ -295,9 +277,8 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		{
 			name:        "正常系: 管理者ユーザーログイン成功",
 			requestBody: `{"email":"admin@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
 				userResponse := models.UserResponse{
 					UserID: 2,
@@ -306,12 +287,11 @@ func TestAuthController_LogInHandler(t *testing.T) {
 				}
 				token := "admin-jwt-token"
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("LogIn", mock.Anything, mock.MatchedBy(func(req models.AuthenticateRequest) bool {
 					return req.Email == "admin@example.com"
 				})).Return(userResponse, token, nil)
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusOK,
 			expectError:    false,
@@ -328,25 +308,20 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		{
 			name:        "異常系: 不正なJSONリクエスト",
 			requestBody: `{"email":}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 			expectedCode:   apperrors.ReqBodyDecodeFailed,
 		},
 		{
-			name:        "異常系: バリデーションエラー",
+			name:        "異常系: バリデーションエラー（不正なメールアドレス）",
 			requestBody: `{"email":"invalid-email"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
-
-				mockValidator.On("Validate", mock.Anything).Return(apperrors.ValidationFailed.Wrap(nil, "メールアドレスの形式が正しくありません"))
-
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
@@ -355,15 +330,13 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		{
 			name:        "異常系: 認証失敗（ユーザーが見つからない）",
 			requestBody: `{"email":"notfound@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("LogIn", mock.Anything, mock.Anything).Return(
 					models.UserResponse{}, "", apperrors.Unauthorized.Wrap(nil, "認証に失敗しました"))
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectError:    true,
@@ -372,15 +345,13 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		{
 			name:        "異常系: サービス層で内部エラー",
 			requestBody: `{"email":"test@example.com"}`,
-			setupMock: func() (*MockAuthService, *MockValidator) {
+			setupMock: func() *MockAuthService {
 				mockService := new(MockAuthService)
-				mockValidator := new(MockValidator)
 
-				mockValidator.On("Validate", mock.Anything).Return(nil)
 				mockService.On("LogIn", mock.Anything, mock.Anything).Return(
 					models.UserResponse{}, "", apperrors.Unknown.Wrap(nil, "内部エラーが発生しました"))
 
-				return mockService, mockValidator
+				return mockService
 			},
 			expectedStatus: http.StatusInternalServerError,
 			expectError:    true,
@@ -391,12 +362,11 @@ func TestAuthController_LogInHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// モックのセットアップ
-			mockService, mockValidator := tt.setupMock()
+			mockService := tt.setupMock()
 			defer mockService.AssertExpectations(t)
-			defer mockValidator.AssertExpectations(t)
 
 			// コントローラーの作成
-			controller := controllers.NewAuthController(mockService, mockValidator)
+			controller := controllers.NewAuthController(mockService)
 
 			// テストコンテキストの作成
 			c, rec := createTestContextForAuth(http.MethodPost, "/auth/login", tt.requestBody)

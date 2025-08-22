@@ -14,7 +14,6 @@ import (
 	"github.com/A4-dev-team/mobileorder.git/controllers"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/A4-dev-team/mobileorder.git/services"
-	"github.com/A4-dev-team/mobileorder.git/validators"
 
 	_ "github.com/lib/pq"
 )
@@ -41,16 +40,14 @@ func main() {
 	shopRepository := repositories.NewShopRepository(db)
 	itemRepository := repositories.NewItemRepository(db)
 
-	customValidator := validators.NewValidator()
-
 	adminService := services.NewAdminService(db)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository, db)
 	orderService := services.NewOrderService(orderRepository, itemRepository, db)
 	itemService := services.NewItemService(itemRepository)
 
 	adminController := controllers.NewAdminController(adminService)
-	authController := controllers.NewAuthController(authService, customValidator)
-	orderController := controllers.NewOrderController(orderService, customValidator)
+	authController := controllers.NewAuthController(authService)
+	orderController := controllers.NewOrderController(orderService)
 	itemController := controllers.NewItemController(itemService)
 
 	e := api.NewRouter(adminController, authController, orderController, itemController)

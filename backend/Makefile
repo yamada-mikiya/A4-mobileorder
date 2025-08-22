@@ -1,6 +1,6 @@
 # mobileorder backend Makefile
 
-.PHONY: test test-controllers test-services test-repositories test-coverage test-integration clean help
+.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help
 
 # デフォルトターゲット
 all: test
@@ -9,11 +9,19 @@ all: test
 test:
 	@echo "=== mobileorder プロジェクト全体テスト実行 ==="
 	@$(MAKE) clean
+	@$(MAKE) test-validators
 	@$(MAKE) test-controllers
 	@$(MAKE) test-services
 	@$(MAKE) test-repositories
 	@$(MAKE) test-coverage
 	@echo "=== テスト実行完了 ==="
+
+# バリデーター層のテスト
+test-validators:
+	@echo "🧪 バリデーター層のテスト実行..."
+	@mkdir -p coverage
+	go test ./validators -v -coverprofile=coverage/validators.out -covermode=atomic
+	@echo "✅ バリデーター層: 完了"
 
 # コントローラー層のテスト
 test-controllers:
@@ -43,6 +51,7 @@ test-coverage:
 	@echo "📊 カバレッジレポート生成..."
 	@mkdir -p coverage
 	@echo "mode: atomic" > coverage/combined.out
+	@if [ -f coverage/validators.out ]; then tail -n +2 coverage/validators.out >> coverage/combined.out; fi
 	@if [ -f coverage/controllers.out ]; then tail -n +2 coverage/controllers.out >> coverage/combined.out; fi
 	@if [ -f coverage/services.out ]; then tail -n +2 coverage/services.out >> coverage/combined.out; fi
 	@if [ -f coverage/repositories.out ]; then tail -n +2 coverage/repositories.out >> coverage/combined.out; fi
@@ -78,6 +87,7 @@ clean:
 help:
 	@echo "使用可能なコマンド:"
 	@echo "  make test              - 全てのテストを順次実行（推奨）"
+	@echo "  make test-validators   - バリデーター層のみテスト"
 	@echo "  make test-controllers  - コントローラー層のみテスト"
 	@echo "  make test-services     - サービス層のみテスト"
 	@echo "  make test-repositories - リポジトリ層のみテスト"
