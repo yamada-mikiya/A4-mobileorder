@@ -390,3 +390,37 @@ func TestAuthController_LogInHandler(t *testing.T) {
 		})
 	}
 }
+
+// TestAuthController_RateLimit のテストケース
+func TestAuthController_RateLimit(t *testing.T) {
+	t.Run("レート制限: 5回失敗後ブロック", func(t *testing.T) {
+		// モックのセットアップ
+		mockService := new(MockAuthService)
+
+		// 常に認証失敗を返すモック
+		mockService.On("LogIn", mock.Anything, mock.Anything).Return(
+			models.UserResponse{}, "", apperrors.Unauthorized.Wrap(nil, "認証に失敗しました"))
+
+		// コントローラーの作成
+		controller := controllers.NewAuthController(mockService)
+
+		// 5回連続で失敗させる
+		for i := 0; i < 5; i++ {
+			c, _ := createTestContextForAuth(http.MethodPost, "/auth/login", `{"email":"test@example.com"}`)
+			err := controller.LogInHandler(c)
+			assert.Error(t, err)
+		}
+
+		// 6回目はレート制限でブロックされるはず
+		c, _ := createTestContextForAuth(http.MethodPost, "/auth/login", `{"email":"test@example.com"}`)
+		err := controller.LogInHandler(c)
+
+		assert.Error(t, err)
+		var appErr *apperrors.AppError
+		assert.ErrorAs(t, err, &appErr)
+		assert.Equal(t, apperrors.Forbidden, appErr.ErrCode)
+		assert.Contains(t, appErr.Error(), "短時間に多数のアクセス")
+
+		mockService.AssertExpectations(t)
+	})
+}

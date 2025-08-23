@@ -91,7 +91,7 @@ curl -X POST http://localhost:8080/auth/login \
 
 ```bash
 # 商品一覧取得（店舗ID: 1）
-curl http://localhost:8080/shops/1/products
+curl http://localhost:8080/shops/1/items
 
 # 店舗情報取得
 curl http://localhost:8080/shops/1

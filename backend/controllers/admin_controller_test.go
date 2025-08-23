@@ -98,7 +98,7 @@ func createSampleAdminOrderResponse() []models.AdminOrderResponse {
 			OrderID:       1,
 			CustomerEmail: stringPtr("test@example.com"),
 			OrderDate:     time.Date(2025, 8, 16, 12, 0, 0, 0, time.UTC),
-			TotalAmount:   1500.0,
+			TotalAmount:   1500,
 			Status:        "cooking",
 			Items: []models.ItemDetail{
 				{
@@ -249,7 +249,7 @@ func TestAdminController_GetCompletedOrdersHandler(t *testing.T) {
 						OrderID:       2,
 						CustomerEmail: stringPtr("completed@example.com"),
 						OrderDate:     time.Date(2025, 8, 16, 10, 0, 0, 0, time.UTC),
-						TotalAmount:   2000.0,
+						TotalAmount:   2000,
 						Status:        "completed",
 						Items: []models.ItemDetail{
 							{

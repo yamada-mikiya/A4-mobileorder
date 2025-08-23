@@ -153,7 +153,7 @@ func TestOrderService_GetUserOrders(t *testing.T) {
 							ShopName:     "テストショップ",
 							Location:     "テスト場所",
 							OrderDate:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
-							TotalAmount:  300.0,
+							TotalAmount:  300,
 							Status:       models.Cooking,
 							WaitingCount: 2,
 						},
@@ -174,7 +174,7 @@ func TestOrderService_GetUserOrders(t *testing.T) {
 					ShopName:     "テストショップ",
 					Location:     "テスト場所",
 					OrderDate:    time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
-					TotalAmount:  300.0,
+					TotalAmount:  300,
 					Status:       models.Cooking.String(),
 					WaitingCount: 2,
 					Items: []models.ItemDetail{
@@ -412,15 +412,15 @@ func TestOrderService_CreateOrder(t *testing.T) {
 			setupItemRepo: func(m *ItemRepositoryMock) {
 				m.ValidateAndGetItemsForShopFunc = func(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error) {
 					return map[int]models.Item{
-						1: {ItemID: 1, ItemName: "商品1", Price: 100.0, IsAvailable: true},
-						2: {ItemID: 2, ItemName: "商品2", Price: 200.0, IsAvailable: true},
+						1: {ItemID: 1, ItemName: "商品1", Price: 100, IsAvailable: true},
+						2: {ItemID: 2, ItemName: "商品2", Price: 200, IsAvailable: true},
 					}, nil
 				}
 			},
 			wantOrder: &models.Order{
 				OrderID:     testOrderID,
 				ShopID:      testOrderShopID,
-				TotalAmount: 400.0, // 100*2 + 200*1
+				TotalAmount: 400, // 100*2 + 200*1
 				Status:      models.Cooking,
 				// GuestOrderTokenとUserIDは動的なので比較対象外
 			},
@@ -457,7 +457,7 @@ func TestOrderService_CreateOrder(t *testing.T) {
 			setupItemRepo: func(m *ItemRepositoryMock) {
 				m.ValidateAndGetItemsForShopFunc = func(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error) {
 					return map[int]models.Item{
-						1: {ItemID: 1, ItemName: "商品1", Price: 100.0, IsAvailable: true},
+						1: {ItemID: 1, ItemName: "商品1", Price: 100, IsAvailable: true},
 					}, nil
 				}
 			},
@@ -502,7 +502,7 @@ func TestOrderService_CreateOrder(t *testing.T) {
 					t.Errorf("ShopID mismatch: want=%d, got=%d", tt.wantOrder.ShopID, gotOrder.ShopID)
 				}
 				if gotOrder.TotalAmount != tt.wantOrder.TotalAmount {
-					t.Errorf("TotalAmount mismatch: want=%.2f, got=%.2f", tt.wantOrder.TotalAmount, gotOrder.TotalAmount)
+					t.Errorf("TotalAmount mismatch: want=%d, got=%d", tt.wantOrder.TotalAmount, gotOrder.TotalAmount)
 				}
 				if gotOrder.Status != tt.wantOrder.Status {
 					t.Errorf("Status mismatch: want=%v, got=%v", tt.wantOrder.Status, gotOrder.Status)
@@ -548,8 +548,8 @@ func TestOrderService_CreateAuthenticatedOrder(t *testing.T) {
 			setupItemRepo: func(m *ItemRepositoryMock) {
 				m.ValidateAndGetItemsForShopFunc = func(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error) {
 					return map[int]models.Item{
-						1: {ItemID: 1, ItemName: "商品1", Price: 150.0, IsAvailable: true},
-						2: {ItemID: 2, ItemName: "商品2", Price: 250.0, IsAvailable: true},
+						1: {ItemID: 1, ItemName: "商品1", Price: 100, IsAvailable: true},
+						2: {ItemID: 2, ItemName: "商品2", Price: 100, IsAvailable: true},
 					}, nil
 				}
 			},
@@ -557,7 +557,7 @@ func TestOrderService_CreateAuthenticatedOrder(t *testing.T) {
 				OrderID:     testOrderID,
 				UserID:      sql.NullInt64{Int64: int64(testOrderUserID), Valid: true},
 				ShopID:      testOrderShopID,
-				TotalAmount: 650.0, // 150*1 + 250*2
+				TotalAmount: 300, // 100*1 + 100*2 = 300
 				Status:      models.Cooking,
 			},
 			expectedErrCode: "",
@@ -595,7 +595,7 @@ func TestOrderService_CreateAuthenticatedOrder(t *testing.T) {
 			setupItemRepo: func(m *ItemRepositoryMock) {
 				m.ValidateAndGetItemsForShopFunc = func(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error) {
 					return map[int]models.Item{
-						1: {ItemID: 1, ItemName: "商品1", Price: 100.0, IsAvailable: true},
+						1: {ItemID: 1, ItemName: "商品1", Price: 100, IsAvailable: true},
 					}, nil
 				}
 			},
@@ -643,7 +643,7 @@ func TestOrderService_CreateAuthenticatedOrder(t *testing.T) {
 					t.Errorf("ShopID mismatch: want=%d, got=%d", tt.wantOrder.ShopID, gotOrder.ShopID)
 				}
 				if gotOrder.TotalAmount != tt.wantOrder.TotalAmount {
-					t.Errorf("TotalAmount mismatch: want=%.2f, got=%.2f", tt.wantOrder.TotalAmount, gotOrder.TotalAmount)
+					t.Errorf("TotalAmount mismatch: want=%d, got=%d", tt.wantOrder.TotalAmount, gotOrder.TotalAmount)
 				}
 				if gotOrder.Status != tt.wantOrder.Status {
 					t.Errorf("Status mismatch: want=%v, got=%v", tt.wantOrder.Status, gotOrder.Status)

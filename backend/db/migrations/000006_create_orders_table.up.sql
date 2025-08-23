@@ -3,7 +3,7 @@ CREATE TABLE orders (
     user_id INT,
     shop_id INT NOT NULL,
     order_date TIMESTAMP NOT NULL,
-    total_amount DECIMAL(10, 2) NOT NULL,
+    total_amount INTEGER NOT NULL,
     guest_order_token VARCHAR(255) UNIQUE NULL,
     status SMALLINT NOT NULL DEFAULT 1, -- 1: Cooking, 2: Completed, 3: Handed
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
@@ -16,11 +17,15 @@ type AuthController interface {
 }
 
 type authController struct {
-	s services.AuthServicer
+	s           services.AuthServicer
+	rateLimiter *services.RateLimiter
 }
 
 func NewAuthController(s services.AuthServicer) AuthController {
-	return &authController{s}
+	return &authController{
+		s:           s,
+		rateLimiter: services.NewRateLimiter(),
+	}
 }
 
 // SignUpHandler は新しいユーザーアカウントを作成します。
@@ -47,7 +52,25 @@ func (c *authController) SignUpHandler(ctx echo.Context) error {
 		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 
+	// レート制限チェック
+	if err := c.rateLimiter.CheckRateLimit(req.Email); err != nil {
+		c.logAuthAttempt(req.Email, false, ctx.RealIP(), "Rate limit exceeded on signup")
+		return err
+	}
+
 	userRes, tokenString, err := c.s.SignUp(ctx.Request().Context(), req)
+
+	// サインアップ試行を記録
+	success := err == nil
+	c.rateLimiter.RecordAttempt(req.Email, success)
+
+	// アクセスログ
+	if success {
+		c.logAuthAttempt(req.Email, true, ctx.RealIP(), "Signup successful")
+	} else {
+		c.logAuthAttempt(req.Email, false, ctx.RealIP(), "Signup failed")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -84,7 +107,25 @@ func (c *authController) LogInHandler(ctx echo.Context) error {
 		return apperrors.ValidationFailed.Wrap(err, err.Error())
 	}
 
+	// レート制限チェック
+	if err := c.rateLimiter.CheckRateLimit(req.Email); err != nil {
+		c.logAuthAttempt(req.Email, false, ctx.RealIP(), "Rate limit exceeded")
+		return err
+	}
+
 	userRes, tokenString, err := c.s.LogIn(ctx.Request().Context(), req)
+
+	// 認証試行を記録
+	success := err == nil
+	c.rateLimiter.RecordAttempt(req.Email, success)
+
+	// アクセスログ
+	if success {
+		c.logAuthAttempt(req.Email, true, ctx.RealIP(), "Login successful")
+	} else {
+		c.logAuthAttempt(req.Email, false, ctx.RealIP(), "Login failed")
+	}
+
 	if err != nil {
 		return err
 	}
@@ -95,4 +136,15 @@ func (c *authController) LogInHandler(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, LogInRes)
+}
+
+// logAuthAttempt は認証試行をログに記録します
+func (c *authController) logAuthAttempt(email string, success bool, ip string, message string) {
+	status := "SUCCESS"
+	if !success {
+		status = "FAILED"
+	}
+
+	log.Printf("[AUTH] %s - Email: %s, IP: %s, Message: %s",
+		status, email, ip, message)
 }

@@ -69,7 +69,7 @@ func (m *OrderRepositoryMock) DeleteOrderByIDAndShopID(ctx context.Context, orde
 }
 
 // テスト用データ生成関数
-func createTestAdminOrderDBResult(orderID int, email string, totalAmount float64, status models.OrderStatus) repositories.AdminOrderDBResult {
+func createTestAdminOrderDBResult(orderID int, email string, totalAmount int, status models.OrderStatus) repositories.AdminOrderDBResult {
 	var customerEmail sql.NullString
 	if email != "" {
 		customerEmail = sql.NullString{String: email, Valid: true}
@@ -118,8 +118,8 @@ func TestAdminService_GetCookingOrders(t *testing.T) {
 				}
 
 				return []repositories.AdminOrderDBResult{
-					createTestAdminOrderDBResult(1, "customer1@test.com", 1500.0, models.Cooking),
-					createTestAdminOrderDBResult(2, "", 800.0, models.Cooking),
+					createTestAdminOrderDBResult(1, "customer1@test.com", 1500, models.Cooking),
+					createTestAdminOrderDBResult(2, "", 800, models.Cooking),
 				}, nil
 			},
 			mockFindItemsFunc: func(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error) {
@@ -159,7 +159,7 @@ func TestAdminService_GetCookingOrders(t *testing.T) {
 			shopID: 1,
 			mockFindShopOrdersFunc: func(ctx context.Context, shopID int, statuses []models.OrderStatus) ([]repositories.AdminOrderDBResult, error) {
 				return []repositories.AdminOrderDBResult{
-					createTestAdminOrderDBResult(1, "customer1@test.com", 1500.0, models.Cooking),
+					createTestAdminOrderDBResult(1, "customer1@test.com", 1500, models.Cooking),
 				}, nil
 			},
 			mockFindItemsFunc: func(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error) {
@@ -243,7 +243,7 @@ func TestAdminService_GetCompletedOrders(t *testing.T) {
 				}
 
 				return []repositories.AdminOrderDBResult{
-					createTestAdminOrderDBResult(3, "customer3@test.com", 2000.0, models.Completed),
+					createTestAdminOrderDBResult(3, "customer3@test.com", 2000, models.Completed),
 				}, nil
 			},
 			mockFindItemsFunc: func(ctx context.Context, orderIDs []int) (map[int][]models.ItemDetail, error) {
@@ -328,7 +328,7 @@ func TestAdminService_AssembleResponse_Integration(t *testing.T) {
 				OrderID:       100,
 				CustomerEmail: sql.NullString{String: "integration@test.com", Valid: true},
 				OrderDate:     time.Date(2025, 8, 16, 14, 30, 0, 0, time.UTC),
-				TotalAmount:   2500.0,
+				TotalAmount:   2500,
 				Status:        models.Cooking,
 			},
 		}, nil
@@ -378,8 +378,8 @@ func TestAdminService_AssembleResponse_Integration(t *testing.T) {
 		t.Errorf("期待されるCustomerEmail = integration@test.com, 実際 = %v", order.CustomerEmail)
 	}
 
-	if order.TotalAmount != 2500.0 {
-		t.Errorf("期待されるTotalAmount = 2500.0, 実際 = %f", order.TotalAmount)
+	if order.TotalAmount != 2500 {
+		t.Errorf("期待されるTotalAmount = 2500, 実際 = %d", order.TotalAmount)
 	}
 
 	if order.Status != "cooking" {

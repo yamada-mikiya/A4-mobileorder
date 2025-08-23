@@ -22,10 +22,10 @@ const (
 	itemTestItemID2 = 2
 	itemTestItemID3 = 3
 	itemTestItemID4 = 4
-	itemTestPrice1  = 100.0
-	itemTestPrice2  = 200.0
-	itemTestPrice3  = 300.0
-	itemTestPrice4  = 400.0
+	itemTestPrice1  = 100
+	itemTestPrice2  = 200
+	itemTestPrice3  = 300
+	itemTestPrice4  = 400
 )
 
 func createItemTestShop(shopID int, name string) models.Shop {
@@ -35,7 +35,7 @@ func createItemTestShop(shopID int, name string) models.Shop {
 	}
 }
 
-func createItemTestItem(itemID int, itemName string, price float64) models.Item {
+func createItemTestItem(itemID int, itemName string, price int) models.Item {
 	return models.Item{
 		ItemID:   itemID,
 		ItemName: itemName,

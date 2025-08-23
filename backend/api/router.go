@@ -50,8 +50,10 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 
 	// --- 認証が必要なエンドポイント ---
 	e.POST("/shops/:shop_id/orders", orc.CreateAuthenticatedOrderHandler, jwtMiddleware) //認証ユーザー用注文作成
-	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)                             //ユーザーの注文確認
+	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)                             //ユーザーのアクティブ注文確認（cooking, completed）
 	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware)          //注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
+	// 将来的に履歴機能が必要な場合:
+	// e.GET("/orders/history", orc.GetOrderHistoryHandler, jwtMiddleware)              //ユーザーの全注文履歴（handed含む）
 
 	// --- 管理者用エンドポイント　---
 	adminGroup := e.Group("/admin")

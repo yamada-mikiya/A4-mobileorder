@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/models"
@@ -50,6 +51,9 @@ func setupTestDB(t *testing.T) *sqlx.DB {
 		t.Skip("DATABASE_URL not set, skipping integration test")
 	}
 
+	// テスト実行時はlocalhost経由でアクセス
+	dbURL = strings.ReplaceAll(dbURL, "@db:", "@localhost:")
+
 	db, err := sqlx.Connect("postgres", dbURL)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
@@ -86,9 +90,9 @@ func setupTestData(t *testing.T, db *sqlx.DB) {
 	// 商品データを作成
 	_, err = db.Exec(`
 		INSERT INTO items (item_id, item_name, description, price, is_available, created_at, updated_at)
-		VALUES 
-			(1, 'テスト商品1', 'テスト用商品1', 100.0, true, NOW(), NOW()),
-			(2, 'テスト商品2', 'テスト用商品2', 200.0, true, NOW(), NOW())
+		VALUES
+			(1, 'テスト商品1', 'テスト用商品1', 100, true, NOW(), NOW()),
+			(2, 'テスト商品2', 'テスト用商品2', 200, true, NOW(), NOW())
 		ON CONFLICT (item_id) DO NOTHING
 	`)
 	if err != nil {
@@ -121,7 +125,7 @@ func TestTransactionManager_WithUserOrderTransaction_Success(t *testing.T) {
 	var guestOrderID int
 	err := db.QueryRow(`
 		INSERT INTO orders (shop_id, order_date, total_amount, status, guest_order_token, created_at, updated_at)
-		VALUES (1, NOW(), 500.0, 1, 'test-guest-token', NOW(), NOW())
+		VALUES (1, NOW(), 500, 1, 'test-guest-token', NOW(), NOW())
 		RETURNING order_id
 	`).Scan(&guestOrderID)
 	if err != nil {
@@ -284,14 +288,14 @@ func TestTransactionManager_WithOrderTransaction_SingleRepository(t *testing.T) 
 		// テスト用注文を作成
 		order := &models.Order{
 			ShopID:          1,
-			TotalAmount:     300.0,
+			TotalAmount:     300,
 			Status:          models.Cooking,
 			GuestOrderToken: sql.NullString{String: "single-repo-token", Valid: true},
 		}
 
 		orderItems := []models.OrderItem{
-			{ItemID: 1, Quantity: 2, PriceAtOrder: 100.0},
-			{ItemID: 2, Quantity: 1, PriceAtOrder: 100.0},
+			{ItemID: 1, Quantity: 2, PriceAtOrder: 100},
+			{ItemID: 2, Quantity: 1, PriceAtOrder: 100},
 		}
 
 		if err := orderRepo.CreateOrder(context.Background(), order, orderItems); err != nil {
@@ -306,13 +310,13 @@ func TestTransactionManager_WithOrderTransaction_SingleRepository(t *testing.T) 
 	}
 
 	// 結果検証: 注文が作成されていること
-	var totalAmount float64
+	var totalAmount int
 	err = db.QueryRow("SELECT total_amount FROM orders WHERE order_id = $1", orderID).Scan(&totalAmount)
 	if err != nil {
 		t.Fatalf("注文検証失敗: %v", err)
 	}
-	if totalAmount != 300.0 {
-		t.Errorf("期待される合計額: 300.0, 実際: %.2f", totalAmount)
+	if totalAmount != 300 {
+		t.Errorf("期待される合計額: 300, 実際: %d", totalAmount)
 	}
 
 	// クリーンアップ
@@ -340,13 +344,13 @@ func TestTransactionManager_WithOrderTransaction_Rollback(t *testing.T) {
 		// 正常な注文作成
 		order := &models.Order{
 			ShopID:          1,
-			TotalAmount:     400.0,
+			TotalAmount:     400,
 			Status:          models.Cooking,
 			GuestOrderToken: sql.NullString{String: "rollback-token", Valid: true},
 		}
 
 		orderItems := []models.OrderItem{
-			{ItemID: 1, Quantity: 3, PriceAtOrder: 100.0},
+			{ItemID: 1, Quantity: 3, PriceAtOrder: 100},
 		}
 
 		if err := orderRepo.CreateOrder(context.Background(), order, orderItems); err != nil {
@@ -423,7 +427,7 @@ func TestAuthService_SignUp_Integration(t *testing.T) {
 				var orderID int
 				err := db.QueryRow(`
 					INSERT INTO orders (shop_id, order_date, total_amount, status, guest_order_token, created_at, updated_at)
-					VALUES (1, NOW(), 500.0, 1, 'test-guest-token-123', NOW(), NOW())
+					VALUES (1, NOW(), 500, 1, 'test-guest-token-123', NOW(), NOW())
 					RETURNING order_id
 				`).Scan(&orderID)
 				if err != nil {
@@ -510,9 +514,9 @@ func TestOrderService_CreateOrder_Integration(t *testing.T) {
 				{ItemID: 2, Quantity: 1}, // テスト商品2: 200円 × 1
 			},
 			validate: func(t *testing.T, order *models.Order) {
-				expectedTotal := 100.0*2 + 200.0*1 // 400.0
+				expectedTotal := 100*2 + 200*1
 				if order.TotalAmount != expectedTotal {
-					t.Errorf("合計金額が正しくありません: expected=%.2f, actual=%.2f", expectedTotal, order.TotalAmount)
+					t.Errorf("合計金額が正しくありません: expected=%d, actual=%d", expectedTotal, order.TotalAmount)
 				}
 				if !order.GuestOrderToken.Valid || order.GuestOrderToken.String == "" {
 					t.Error("ゲストトークンが設定されていません")
@@ -603,7 +607,7 @@ func TestAdminService_UpdateOrderStatus_Integration(t *testing.T) {
 				var orderID int
 				err := db.QueryRow(`
 					INSERT INTO orders (shop_id, order_date, total_amount, status, created_at, updated_at)
-					VALUES (1, NOW(), 1000.0, 1, NOW(), NOW())
+					VALUES (1, NOW(), 1000, 1, NOW(), NOW())
 					RETURNING order_id
 				`).Scan(&orderID)
 				if err != nil {
@@ -683,7 +687,7 @@ func TestAuthService_LogIn_Integration(t *testing.T) {
 	var guestOrderID int
 	err = db.QueryRow(`
 		INSERT INTO orders (shop_id, order_date, total_amount, status, guest_order_token, created_at, updated_at)
-		VALUES (1, NOW(), 800.0, 1, 'login-guest-token-456', NOW(), NOW())
+		VALUES (1, NOW(), 800, 1, 'login-guest-token-456', NOW(), NOW())
 		RETURNING order_id
 	`).Scan(&guestOrderID)
 	if err != nil {

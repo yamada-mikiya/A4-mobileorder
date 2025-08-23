@@ -118,7 +118,7 @@ func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int,
 }
 
 // 商品が店のものとあっているかの検証と合計金額とorder_itemテーブルに入れるためのデータを作るヘルパーメソッド
-func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr repositories.ItemRepository, shopID int, items []models.OrderItemRequest) (float64, []models.OrderItem, error) {
+func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr repositories.ItemRepository, shopID int, items []models.OrderItemRequest) (int, []models.OrderItem, error) {
 
 	if len(items) == 0 {
 		return 0, nil, apperrors.BadParam.Wrap(nil, "注文には少なくとも1つの商品が必要です。")
@@ -134,7 +134,7 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr rep
 		return 0, nil, err
 	}
 
-	var totalAmount float64 = 0
+	var totalAmount int = 0
 	orderItemsToCreate := make([]models.OrderItem, len(items))
 	for i, item := range items {
 		itemModel := validItemMap[item.ItemID]
@@ -144,7 +144,7 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr rep
 		}
 
 		priceAtOrder := itemModel.Price
-		totalAmount += priceAtOrder * float64(item.Quantity)
+		totalAmount += priceAtOrder * item.Quantity
 
 		orderItemsToCreate[i] = models.OrderItem{
 			ItemID:       item.ItemID,

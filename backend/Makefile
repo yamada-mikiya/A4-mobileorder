@@ -1,9 +1,19 @@
 # mobileorder backend Makefile
 
-.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help
+.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help setup-mockdata
 
 # デフォルトターゲット
 all: test
+
+# mockDataの再挿入（Docker DB用）
+setup-mockdata:
+	@echo "🗄️  Docker DBにmockDataを挿入..."
+	@if ! docker compose ps | grep -q "postgres-db.*Up"; then \
+		echo "❌ Docker Compose DBが起動していません。'docker compose up -d' を実行してください。"; \
+		exit 1; \
+	fi
+	@cat mockData.sql | docker compose exec -T db psql -U myuser -d mydb
+	@echo "✅ mockData挿入完了"
 
 # 全てのテストを順次実行
 test:
@@ -87,6 +97,7 @@ clean:
 help:
 	@echo "使用可能なコマンド:"
 	@echo "  make test              - 全てのテストを順次実行（推奨）"
+	@echo "  make setup-mockdata    - Docker DBにmockDataを再挿入"
 	@echo "  make test-validators   - バリデーター層のみテスト"
 	@echo "  make test-controllers  - コントローラー層のみテスト"
 	@echo "  make test-services     - サービス層のみテスト"

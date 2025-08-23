@@ -69,7 +69,8 @@ func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order, 
 }
 
 func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestToken string, userID int) error {
-	query := "UPDATE orders SET user_id = $1 WHERE guest_order_token = $2"
+	// user_id が NULL の場合のみ更新（まだユーザーに紐付けられていない注文のみ）
+	query := "UPDATE orders SET user_id = $1 WHERE guest_order_token = $2 AND user_id IS NULL"
 	result, err := r.db.ExecContext(ctx, query, userID, guestToken)
 	if err != nil {
 		return apperrors.UpdateDataFailed.Wrap(err, "ゲスト注文のユーザー紐付けに失敗しました。")
@@ -79,6 +80,22 @@ func (r *orderRepository) UpdateUserIDByGuestToken(ctx context.Context, guestTok
 		return apperrors.UpdateDataFailed.Wrap(err, "更新結果の取得に失敗しました。")
 	}
 	if rowsAffected == 0 {
+		// より詳細なエラーチェックのため、注文が存在するかチェック
+		var existingUserID sql.NullInt64
+		checkQuery := "SELECT user_id FROM orders WHERE guest_order_token = $1"
+		err := r.db.QueryRowxContext(ctx, checkQuery, guestToken).Scan(&existingUserID)
+
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return apperrors.NoData.Wrap(nil, "指定されたゲスト注文トークンが見つかりませんでした。")
+			}
+			return apperrors.GetDataFailed.Wrap(err, "ゲスト注文の確認に失敗しました。")
+		}
+
+		if existingUserID.Valid {
+			return apperrors.Conflict.Wrap(nil, "この注文は既に他のユーザーアカウントに紐付けられています。")
+		}
+
 		return apperrors.NoData.Wrap(nil, "指定されたゲスト注文は見つかりませんでした。")
 	}
 	return nil
@@ -90,7 +107,7 @@ type OrderWithDetailsDB struct {
 	ShopName     string             `db:"shop_name"`
 	Location     string             `db:"location"`
 	OrderDate    time.Time          `db:"order_date"`
-	TotalAmount  float64            `db:"total_amount"`
+	TotalAmount  int                `db:"total_amount"`
 	Status       models.OrderStatus `db:"status"`
 	WaitingCount int                `db:"waiting_count"`
 }
@@ -166,8 +183,9 @@ func (r *orderRepository) FindItemsByOrderIDs(ctx context.Context, orderIDs []in
 
 func (r *orderRepository) FindOrderByIDAndUser(ctx context.Context, orderID int, userID int) (*models.Order, error) {
 	var order models.Order
-	query := "SELECT * FROM orders WHERE order_id = $1 AND user_id = $2"
-	if err := r.db.GetContext(ctx, &order, query, orderID, userID); err != nil {
+	// アクティブな注文（cooking, completed）のみを取得
+	query := "SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 AND status IN ($3, $4)"
+	if err := r.db.GetContext(ctx, &order, query, orderID, userID, models.Cooking, models.Completed); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, apperrors.NoData.Wrap(err, "注文が見つからないか、アクセス権がありません。")
 		}
@@ -190,7 +208,7 @@ type AdminOrderDBResult struct {
 	OrderID       int                `db:"order_id"`
 	CustomerEmail sql.NullString     `db:"email"`
 	OrderDate     time.Time          `db:"order_date"`
-	TotalAmount   float64            `db:"total_amount"`
+	TotalAmount   int                `db:"total_amount"` // 円単位の整数
 	Status        models.OrderStatus `db:"status"`
 }
 
@@ -270,4 +288,3 @@ func (r *orderRepository) DeleteOrderByIDAndShopID(ctx context.Context, orderID 
 
 	return nil
 }
-
