@@ -49,9 +49,13 @@ type LoginResponse struct {
 	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
 }
 
-// いずみん
+// 商品一覧レスポンス
 type ItemListResponse struct {
-	a int
+	ItemID      int    `json:"item_id"`
+	ItemName    string `json:"item_name"`
+	Description string `json:"description"`
+	Price       int    `json:"price"`
+	IsAvailable bool   `json:"is_available"`
 }
 
 type AdminOrderResponse struct {

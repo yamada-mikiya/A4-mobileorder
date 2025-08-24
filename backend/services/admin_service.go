@@ -13,32 +13,27 @@ type AdminServicer interface {
 	GetCookingOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error)
 	GetCompletedOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error)
 	UpdateOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error
+	UpdateItemAvailability(ctx context.Context, itemID int, isAvailable bool) error
 	DeleteOrder(ctx context.Context, adminShopID int, targetOrderID int) error
 }
 
 type adminService struct {
 	orr repositories.OrderRepository
-	txm TransactionManager
+	itr repositories.ItemRepository
+	db  *sqlx.DB
 }
 
-func NewAdminService(orr repositories.OrderRepository, db *sqlx.DB) AdminServicer {
+func NewAdminService(orr repositories.OrderRepository, itr repositories.ItemRepository, db *sqlx.DB) AdminServicer {
 	return &adminService{
 		orr: orr,
-		txm: NewTransactionManager(db),
-	}
-}
-
-// NewAdminServiceForTest creates an admin service for unit testing with mocked dependencies
-func NewAdminServiceForTest(mockRepo repositories.OrderRepository, mockTxm TransactionManager) AdminServicer {
-	return &adminService{
-		orr: mockRepo,
-		txm: mockTxm,
+		itr: itr,
+		db:  db,
 	}
 }
 
 func (s *adminService) GetCookingOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
 
-	cookingOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Cooking})
+	cookingOrders, err := s.orr.FindShopOrdersByStatuses(ctx, s.db, shopID, []models.OrderStatus{models.Cooking})
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +41,7 @@ func (s *adminService) GetCookingOrders(ctx context.Context, shopID int) ([]mode
 }
 
 func (s *adminService) GetCompletedOrders(ctx context.Context, shopID int) ([]models.AdminOrderResponse, error) {
-	completedOrders, err := s.orr.FindShopOrdersByStatuses(ctx, shopID, []models.OrderStatus{models.Completed})
+	completedOrders, err := s.orr.FindShopOrdersByStatuses(ctx, s.db, shopID, []models.OrderStatus{models.Completed})
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +57,7 @@ func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders
 	for i, o := range dbOrders {
 		orderIDs[i] = o.OrderID
 	}
-	itemsMap, err := s.orr.FindItemsByOrderIDs(ctx, orderIDs)
+	itemsMap, err := s.orr.FindItemsByOrderIDs(ctx, s.db, orderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -87,35 +82,72 @@ func (s *adminService) assembleAdminOrderResponses(ctx context.Context, dbOrders
 }
 
 func (s *adminService) UpdateOrderStatus(ctx context.Context, adminShopID int, targetOrderID int) error {
-	return s.txm.WithOrderTransaction(ctx, func(txRepo repositories.OrderRepository) error {
-		// 注文の確認とステータス更新を同一トランザクション内で実行
-		currentOrder, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-		if err != nil {
-			return err
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				err = apperrors.Unknown.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
 		}
+	}()
 
-		var nextStatus models.OrderStatus
-		switch currentOrder.Status {
-		case models.Cooking:
-			nextStatus = models.Completed
-		case models.Completed:
-			nextStatus = models.Handed
-		default:
-			return apperrors.Conflict.Wrapf(nil, "ステータスが'%s'の注文はこれ以上進められません。", currentOrder.Status.String())
-		}
+	// 注文の確認とステータス更新を同一トランザクション内で実行
+	currentOrder, err := s.orr.FindOrderByIDAndShopID(ctx, tx, targetOrderID, adminShopID)
+	if err != nil {
+		return err
+	}
 
-		return txRepo.UpdateOrderStatus(ctx, targetOrderID, adminShopID, nextStatus)
-	})
+	var nextStatus models.OrderStatus
+	switch currentOrder.Status {
+	case models.Cooking:
+		nextStatus = models.Completed
+	case models.Completed:
+		nextStatus = models.Handed
+	default:
+		return apperrors.Conflict.Wrapf(nil, "ステータスが'%s'の注文はこれ以上進められません。", currentOrder.Status.String())
+	}
+
+	return s.orr.UpdateOrderStatus(ctx, tx, targetOrderID, adminShopID, nextStatus)
 }
 
 func (s *adminService) DeleteOrder(ctx context.Context, adminShopID int, targetOrderID int) error {
-	return s.txm.WithOrderTransaction(ctx, func(txRepo repositories.OrderRepository) error {
-		// 注文の存在確認と削除を同一トランザクション内で実行
-		_, err := txRepo.FindOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-		if err != nil {
-			return err
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				err = apperrors.Unknown.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
 		}
+	}()
 
-		return txRepo.DeleteOrderByIDAndShopID(ctx, targetOrderID, adminShopID)
-	})
+	// 注文の存在確認と削除を同一トランザクション内で実行
+	_, err = s.orr.FindOrderByIDAndShopID(ctx, tx, targetOrderID, adminShopID)
+	if err != nil {
+		return err
+	}
+
+	return s.orr.DeleteOrderByIDAndShopID(ctx, tx, targetOrderID, adminShopID)
+}
+
+// UpdateItemAvailability は商品の販売状態を更新します
+func (s *adminService) UpdateItemAvailability(ctx context.Context, itemID int, isAvailable bool) error {
+	return s.itr.UpdateItemAvailability(ctx, s.db, itemID, isAvailable)
 }

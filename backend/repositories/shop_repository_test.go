@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
+	"github.com/A4-dev-team/mobileorder.git/internal/testhelpers"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/jmoiron/sqlx"
 )
@@ -89,13 +90,13 @@ func TestFindShopIDByAdminID(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewShopRepository(tx)
-			got, err := repo.FindShopIDByAdminID(context.Background(), tt.userID)
+			repo := repositories.NewShopRepository()
+			got, err := repo.FindShopIDByAdminID(context.Background(), tx, tt.userID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if got != tt.want {
 					t.Errorf("FindShopIDByAdminID() = %d, want %d", got, tt.want)
 				}

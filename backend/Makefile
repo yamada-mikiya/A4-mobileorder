@@ -44,6 +44,8 @@ test-controllers:
 test-services:
 	@echo "🧪 サービス層の全テスト実行..."
 	@mkdir -p coverage
+	@echo "📥 データベースにmockDataを挿入中..."
+	@$(MAKE) setup-mockdata > /dev/null 2>&1 || echo "⚠️  mockData挿入をスキップ（Docker未起動またはDBエラー）"
 	@export DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" && \
 	go test ./services -v -coverprofile=coverage/services.out -covermode=atomic
 	@echo "✅ サービス層: 完了"
@@ -52,6 +54,8 @@ test-services:
 test-repositories:
 	@echo "🧪 リポジトリ層のテスト実行..."
 	@mkdir -p coverage
+	@echo "📥 データベースにmockDataを挿入中..."
+	@$(MAKE) setup-mockdata > /dev/null 2>&1 || echo "⚠️  mockData挿入をスキップ（Docker未起動またはDBエラー）"
 	@export DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" && \
 	go test ./repositories -v -coverprofile=coverage/repositories.out -covermode=atomic
 	@echo "✅ リポジトリ層: 完了"
@@ -82,6 +86,8 @@ coverage-summary:
 # 統合テストのみ実行
 test-integration:
 	@echo "🧪 統合テスト実行..."
+	@echo "📥 データベースにmockDataを挿入中..."
+	@$(MAKE) setup-mockdata > /dev/null 2>&1 || echo "⚠️  mockData挿入をスキップ（Docker未起動またはDBエラー）"
 	@export DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" && \
 	echo "🔗 データベース接続URL: $$DATABASE_URL" && \
 	go test -run="Integration" ./services -v

@@ -35,15 +35,15 @@ func main() {
 	db, closer := connectDB.NewDB()
 	defer closer()
 
-	userRepository := repositories.NewUserRepository(db)
-	orderRepository := repositories.NewOrderRepository(db)
-	shopRepository := repositories.NewShopRepository(db)
-	itemRepository := repositories.NewItemRepository(db)
+	userRepository := repositories.NewUserRepository()
+	orderRepository := repositories.NewOrderRepository()
+	shopRepository := repositories.NewShopRepository()
+	itemRepository := repositories.NewItemRepository()
 
-	adminService := services.NewAdminService(orderRepository, db)
+	adminService := services.NewAdminService(orderRepository, itemRepository, db)
 	authService := services.NewAuthService(userRepository, shopRepository, orderRepository, db)
 	orderService := services.NewOrderService(orderRepository, itemRepository, db)
-	itemService := services.NewItemService(itemRepository)
+	itemService := services.NewItemService(itemRepository, db)
 
 	adminController := controllers.NewAdminController(adminService)
 	authController := controllers.NewAuthController(authService)

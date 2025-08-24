@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
+	"github.com/A4-dev-team/mobileorder.git/internal/testhelpers"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/google/go-cmp/cmp"
@@ -214,13 +215,13 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 				}
 			}
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.CreateOrder(ctx, tt.order, tt.items)
+			repo := repositories.NewOrderRepository()
+			err := repo.CreateOrder(ctx, tx, tt.order, tt.items)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// 注文が正しく作成されているかチェック
 				if tt.order.OrderID == 0 {
@@ -364,13 +365,13 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 				tt.setup(t, tx)
 			}
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.UpdateUserIDByGuestToken(ctx, tt.guestToken, tt.userIDToSet)
+			repo := repositories.NewOrderRepository()
+			err := repo.UpdateUserIDByGuestToken(ctx, tx, tt.guestToken, tt.userIDToSet)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.assertion != nil {
 					tt.assertion(t, tx)
 				}
@@ -487,13 +488,13 @@ func TestOrderRepository_FindActiveUserOrders(t *testing.T) {
 
 			setupActiveUserOrdersData(t, tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindActiveUserOrders(ctx, tt.userID)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindActiveUserOrders(ctx, tx, tt.userID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.assertion != nil {
 					tt.assertion(t, got)
 				}
@@ -645,14 +646,14 @@ func TestOrderRepository_FindItemsByOrderIDs(t *testing.T) {
 			setupItemsByOrderIDsData(t, tx)
 
 			// リポジトリ作成とテスト実行
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindItemsByOrderIDs(ctx, tt.orderIDs)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindItemsByOrderIDs(ctx, tx, tt.orderIDs)
 
 			// 結果のアサーション
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.assertion != nil {
 					tt.assertion(t, got)
 				}
@@ -719,13 +720,13 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindOrderByIDAndUser(context.Background(), tt.orderID, tt.userID)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindOrderByIDAndUser(context.Background(), tx, tt.orderID, tt.userID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.want != nil {
 					// 注文の詳細を検証
 					if got == nil {
@@ -805,13 +806,13 @@ func TestCountWaitingOrders(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.CountWaitingOrders(context.Background(), tt.shopID, tt.orderDate)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.CountWaitingOrders(context.Background(), tx, tt.shopID, tt.orderDate)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if got != tt.want {
 					t.Errorf("expected count %d, got %d", tt.want, got)
 				}
@@ -887,13 +888,13 @@ func TestFindShopOrdersByStatuses(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindShopOrdersByStatuses(context.Background(), tt.shopID, tt.statuses)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindShopOrdersByStatuses(context.Background(), tx, tt.shopID, tt.statuses)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				if len(got) != len(tt.want) {
 					t.Errorf("expected %d orders, got %d", len(tt.want), len(got))
@@ -982,13 +983,13 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindOrderByIDAndShopID(context.Background(), tt.orderID, tt.shopID)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindOrderByIDAndShopID(context.Background(), tx, tt.orderID, tt.shopID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				if tt.want != nil {
 					// 注文の詳細を検証
@@ -1073,13 +1074,13 @@ func TestUpdateOrderStatus(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.UpdateOrderStatus(context.Background(), tt.orderID, tt.shopID, tt.newStatus)
+			repo := repositories.NewOrderRepository()
+			err := repo.UpdateOrderStatus(context.Background(), tx, tt.orderID, tt.shopID, tt.newStatus)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// 正常に更新された場合は実際にステータスが変更されているか確認
 				var status models.OrderStatus
@@ -1143,13 +1144,13 @@ func TestDeleteOrderByIDAndShopID(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.DeleteOrderByIDAndShopID(context.Background(), tt.orderID, tt.shopID)
+			repo := repositories.NewOrderRepository()
+			err := repo.DeleteOrderByIDAndShopID(context.Background(), tx, tt.orderID, tt.shopID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// 正常に削除された場合は実際に注文が削除されているか確認
 				var count int

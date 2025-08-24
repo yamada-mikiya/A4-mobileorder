@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
+	"github.com/A4-dev-team/mobileorder.git/internal/testhelpers"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/google/go-cmp/cmp"
@@ -93,29 +94,6 @@ func setupItemRepositoryTestData(t *testing.T, tx *sqlx.Tx) {
 	}
 }
 
-func assertItemNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("予期せぬエラーが発生しました: %v", err)
-	}
-}
-
-func assertItemAppError(t *testing.T, err error, expectedErrCode apperrors.ErrCode) {
-	t.Helper()
-	if err == nil {
-		t.Fatalf("期待したエラーコード '%s' が発生しませんでした", expectedErrCode)
-	}
-
-	var appErr *apperrors.AppError
-	if !errors.As(err, &appErr) {
-		t.Fatalf("期待したエラーの型(*apperrors.AppError)と異なります: %T", err)
-	}
-
-	if expectedErrCode != appErr.ErrCode {
-		t.Fatalf("期待したエラーコード '%s', 実際のエラーコード '%s'", expectedErrCode, appErr.ErrCode)
-	}
-}
-
 func assertItemMapsEqual(t *testing.T, expected, actual map[int]models.Item) {
 	t.Helper()
 	opts := cmpopts.IgnoreFields(models.Item{}, "Description", "IsAvailable", "CreatedAt", "UpdatedAt")
@@ -184,14 +162,14 @@ func TestItemRepository_ValidateAndGetItemsForShop(t *testing.T) {
 
 			setupItemRepositoryTestData(t, tx)
 
-			repo := repositories.NewItemRepository(tx)
+			repo := repositories.NewItemRepository()
 
-			gotMap, err := repo.ValidateAndGetItemsForShop(ctx, tt.shopID, tt.itemIDs)
+			gotMap, err := repo.ValidateAndGetItemsForShop(ctx, tx, tt.shopID, tt.itemIDs)
 
 			if tt.expectErrCode != "" {
-				assertItemAppError(t, err, tt.expectErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectErrCode)
 			} else {
-				assertItemNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				assertItemMapsEqual(t, tt.expectedMap, gotMap)
 			}
 		})

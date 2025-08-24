@@ -42,6 +42,11 @@ func (m *MockAdminService) DeleteOrder(ctx context.Context, adminShopID int, tar
 	return args.Error(0)
 }
 
+func (m *MockAdminService) UpdateItemAvailability(ctx context.Context, itemID int, isAvailable bool) error {
+	args := m.Called(ctx, itemID, isAvailable)
+	return args.Error(0)
+}
+
 // createTestToken はテスト用のJWTトークンを作成します
 func createTestToken(userID int, role models.UserRole, shopID *int) *jwt.Token {
 	claims := &models.JwtCustomClaims{

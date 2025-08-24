@@ -22,3 +22,8 @@ type LoginAttempt struct {
 	LastTry   time.Time  `json:"last_try"`
 	BlockedAt *time.Time `json:"blocked_at,omitempty"`
 }
+
+// 商品の在庫状態更新リクエスト
+type UpdateItemAvailabilityRequest struct {
+	IsAvailable bool `json:"is_available" validate:"required" example:"false"`
+}
