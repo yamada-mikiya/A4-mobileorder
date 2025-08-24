@@ -1,6 +1,6 @@
 # mobileorder backend Makefile
 
-.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help setup-mockdata
+.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help setup-mockdata up down
 
 # デフォルトターゲット
 all: test
@@ -112,4 +112,14 @@ help:
 	@echo "  make test-coverage     - カバレッジレポート生成"
 	@echo "  make coverage-summary  - カバレッジサマリー表示"
 	@echo "  make clean             - テスト結果ファイルをクリーンアップ"
+	@echo "  make up                - Docker Composeサービスを起動（ビルド付き）"
+	@echo "  make down              - Docker Composeサービスを停止（ボリューム削除）"
 	@echo "  make help              - このヘルプを表示"
+
+# Docker Compose コマンド
+up:
+	docker compose up --build
+
+down:
+	docker compose down -v
+
