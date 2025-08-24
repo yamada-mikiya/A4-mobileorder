@@ -152,7 +152,6 @@ const (
 	testEmail           = "test@example.com"
 	testUserID          = 1
 	testShopID          = 1
-	testGuestOrderToken = "guest-token-123"
 )
 
 // setupTestEnv は.envファイルから環境変数を読み込み、SECRET_KEYを取得する

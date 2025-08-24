@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -47,9 +46,6 @@ func setupAdminTestDB(t *testing.T) *sqlx.DB {
 		t.Skip("DATABASE_URL not set, skipping integration test")
 	}
 
-	// テスト実行時はlocalhost経由でアクセス
-	dbURL = strings.ReplaceAll(dbURL, "@db:", "@localhost:")
-
 	db, err := sqlx.Connect("postgres", dbURL)
 	if err != nil {
 		t.Skipf("Database connection failed: %v", err)
@@ -66,7 +62,7 @@ func createTestOrder(t *testing.T, db *sqlx.DB, shopID int, status models.OrderS
 	var orderID int
 	err := db.QueryRow(`
 		INSERT INTO orders (shop_id, total_amount, status, guest_order_token, order_date) 
-		VALUES ($1, 1000, $2, $3, NOW()) 
+		VALUES ($1, 1000, $2, $3, NOW())
 		RETURNING order_id
 	`, shopID, status, guestToken).Scan(&orderID)
 	if err != nil {

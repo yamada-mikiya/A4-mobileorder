@@ -3,7 +3,6 @@ package services_test
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
@@ -44,9 +43,6 @@ func setupOrderTestDB(t *testing.T) *sqlx.DB {
 	if dbURL == "" {
 		t.Skip("DATABASE_URL not set, skipping integration test")
 	}
-
-	// テスト実行時はlocalhost経由でアクセス
-	dbURL = strings.ReplaceAll(dbURL, "@db:", "@localhost:")
 
 	db, err := sqlx.Connect("postgres", dbURL)
 	if err != nil {

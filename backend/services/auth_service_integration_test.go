@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/models"
@@ -43,25 +42,11 @@ func setupTestDB(t *testing.T) *sqlx.DB {
 		t.Skip("DATABASE_URL not set, skipping integration test")
 	}
 
-	// テスト実行時はlocalhost経由でアクセス
-	dbURL = strings.ReplaceAll(dbURL, "@db:", "@localhost:")
-
 	db, err := sqlx.Connect("postgres", dbURL)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// テスト用スキーマのロード
-	schema, err := os.ReadFile("../repositories/testdata/schema.sql")
-	if err != nil {
-		t.Fatalf("Failed to read schema file: %v", err)
-	}
-
-	if _, err := db.Exec(string(schema)); err != nil {
-		t.Fatalf("Failed to apply schema: %v", err)
-	}
-
-	// テスト用基本データの作成
 	setupTestData(t, db)
 
 	return db
