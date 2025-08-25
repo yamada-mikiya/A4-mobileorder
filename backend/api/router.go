@@ -50,8 +50,10 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 
 	// --- 認証が必要なエンドポイント ---
 	e.POST("/shops/:shop_id/orders", orc.CreateAuthenticatedOrderHandler, jwtMiddleware) //認証ユーザー用注文作成
-	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)                             //ユーザーの注文確認
+	e.GET("/orders", orc.GetOrderListHandler, jwtMiddleware)                             //ユーザーのアクティブ注文確認（cooking, completed）
 	e.GET("/orders/:order_id/status", orc.GetOrderStatusHandler, jwtMiddleware)          //注文ステータスと待ち人数の取得(このエンドポイントを定期的に叩いてリアルタイムに近い更新を可能にする。)
+	// 将来的に履歴機能が必要な場合:
+	// e.GET("/orders/history", orc.GetOrderHistoryHandler, jwtMiddleware)              //ユーザーの全注文履歴（handed含む）
 
 	// --- 管理者用エンドポイント　---
 	adminGroup := e.Group("/admin")
@@ -60,7 +62,7 @@ func NewRouter(adc controllers.AdminController, auc controllers.AuthController, 
 		adminGroup.GET("/shops/:shop_id/orders/cooking", adc.GetCookingOrdersHandler)
 		adminGroup.GET("/shops/:shop_id/orders/completed", adc.GetCompletedOrdersHandler)
 		adminGroup.PATCH("/orders/:order_id/status", adc.UpdateOrderStatusHandler)          // 管理者が注文ステータスを更新
-		adminGroup.PATCH("/items/:item_id/availability", adc.UpdateItemAvailabilityHandler) // 商品の在庫状態更新　←いずみん
+		adminGroup.PATCH("/items/:item_id/availability", adc.UpdateItemAvailabilityHandler) // 商品の販売可能状態更新　←いずみん
 		adminGroup.DELETE("/orders/:order_id/delete", adc.DeleteOrderHandler)               //管理者画面で注文を削除
 	}
 	return e

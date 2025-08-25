@@ -11,23 +11,21 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, user *models.User) error
-	GetUserByEmail(ctx context.Context, email string) (models.User, error)
+	CreateUser(ctx context.Context, dbtx DBTX, user *models.User) error
+	GetUserByEmail(ctx context.Context, dbtx DBTX, email string) (models.User, error)
 }
 
-type userRepository struct {
-	db DBTX
+type userRepository struct{}
+
+func NewUserRepository() UserRepository {
+	return &userRepository{}
 }
 
-func NewUserRepository(db DBTX) UserRepository {
-	return &userRepository{db}
-}
-
-func (r *userRepository) CreateUser(ctx context.Context, user *models.User) error {
+func (r *userRepository) CreateUser(ctx context.Context, dbtx DBTX, user *models.User) error {
 	// 新規ユーザーのデフォルトロールは'customer'に設定
 	user.Role = models.CustomerRole
 	query := `INSERT INTO users (email, role) VALUES ($1, $2) RETURNING user_id, created_at, updated_at`
-	err := r.db.QueryRowxContext(ctx, query, user.Email, user.Role).Scan(
+	err := dbtx.QueryRowxContext(ctx, query, user.Email, user.Role).Scan(
 		&user.UserID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -41,10 +39,10 @@ func (r *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 	return nil
 }
 
-func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (models.User, error) {
+func (r *userRepository) GetUserByEmail(ctx context.Context, dbtx DBTX, email string) (models.User, error) {
 	user := models.User{}
 	query := "SELECT user_id, email, role, created_at, updated_at FROM users WHERE email = $1"
-	if err := r.db.GetContext(ctx, &user, query, email); err != nil {
+	if err := dbtx.GetContext(ctx, &user, query, email); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.User{}, apperrors.NoData.Wrap(err, "指定されたメールアドレスのユーザーは見つかりませんでした。")
 		}

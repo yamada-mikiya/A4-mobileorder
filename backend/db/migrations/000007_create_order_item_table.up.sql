@@ -3,7 +3,7 @@ CREATE TABLE order_item (
     order_id INT NOT NULL,
     item_id INT NOT NULL,
     quantity INT NOT NULL,
-    price_at_order DECIMAL(10, 2) NOT NULL,
+    price_at_order INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,

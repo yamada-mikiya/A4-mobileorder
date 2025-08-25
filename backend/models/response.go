@@ -27,7 +27,7 @@ type OrderListResponse struct {
 	ShopName     string       `json:"shop_name"`
 	Location     string       `json:"location"`
 	OrderDate    time.Time    `json:"order_date"`
-	TotalAmount  float64      `json:"total_amount"`
+	TotalAmount  int          `json:"total_amount"`
 	Status       string       `json:"status"` // "cooking" or "completed"
 	WaitingCount int          `json:"waiting_count"`
 	Items        []ItemDetail `json:"items"`
@@ -49,16 +49,20 @@ type LoginResponse struct {
 	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwicm9sZSI6ImN1c3RvbWVyIiwiZXhwIjoxNzUxNTIwMjk1LCJpYXQiOjE3NTEyNjEwOTV9.oItkz3SDGGK0eQSP6BBq-SF3nWLk7Q-ITD1J6UrXeUE"`
 }
 
-// いずみん
+// 商品一覧レスポンス
 type ItemListResponse struct {
-	a int
+	ItemID      int    `json:"item_id"`
+	ItemName    string `json:"item_name"`
+	Description string `json:"description"`
+	Price       int    `json:"price"`
+	IsAvailable bool   `json:"is_available"`
 }
 
 type AdminOrderResponse struct {
 	OrderID       int          `json:"order_id"`
 	CustomerEmail *string      `json:"customer_email"`
 	OrderDate     time.Time    `json:"order_date"`
-	TotalAmount   float64      `json:"total_amount"`
+	TotalAmount   int          `json:"total_amount"`
 	Status        string       `json:"status"`
 	Items         []ItemDetail `json:"items"`
 }

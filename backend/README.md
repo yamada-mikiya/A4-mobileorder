@@ -91,7 +91,7 @@ curl -X POST http://localhost:8080/auth/login \
 
 ```bash
 # 商品一覧取得（店舗ID: 1）
-curl http://localhost:8080/shops/1/products
+curl http://localhost:8080/shops/1/items
 
 # 店舗情報取得
 curl http://localhost:8080/shops/1
@@ -164,7 +164,7 @@ curl -X PUT http://localhost:8080/admin/products/1/availability \
 
 ### 店舗・商品
 - `GET /shops/:shop_id` - 店舗情報取得
-- `GET /shops/:shop_id/products` - 商品一覧取得
+- `GET /shops/:shop_id/items` - 商品一覧取得
 
 ### 注文（認証不要）
 - `POST /shops/:shop_id/guest-orders` - ゲスト注文作成
@@ -179,7 +179,7 @@ curl -X PUT http://localhost:8080/admin/products/1/availability \
 - `GET /admin/shops/:shop_id/orders/cooking` - 調理中注文一覧
 - `GET /admin/shops/:shop_id/orders/completed` - 完了済み注文一覧
 - `PUT /admin/orders/:order_id/status` - 注文ステータス更新
-- `PUT /admin/products/:product_id/availability` - 商品在庫更新
+- `PUT /admin/items/:item_id/availability` - 商品在庫更新
 
 ## 開発ガイド
 
@@ -203,7 +203,7 @@ curl -X PUT http://localhost:8080/admin/products/1/availability \
 - `GET /admin/shops/:shop_id/orders/cooking` - 調理中注文一覧（管理者）
 - `GET /admin/shops/:shop_id/orders/completed` - 完了済み注文一覧（管理者）
 - `PUT /admin/orders/:order_id/status` - 注文ステータス更新（管理者）
-- `PUT /admin/products/:product_id/availability` - 商品在庫更新（管理者）
+- `PUT /admin/items/:item_id/availability` - 商品在庫更新（管理者）
 
 ### 環境変数
 

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
+	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/services"
 	"github.com/labstack/echo/v4"
 )
@@ -178,6 +179,45 @@ func (c *adminController) DeleteOrderHandler(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, map[string]string{"message": "注文を削除しました。"})
 }
 
+// UpdateItemAvailabilityHandler は商品の販売状態を更新します
+// @Summary      商品の販売状態を更新 (Admin)
+// @Description  管理者が商品の販売可能状態を更新します（在庫切れ設定など）
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Param        item_id   path      int                              true  "商品ID"
+// @Param        request   body      models.UpdateItemAvailabilityRequest true  "販売状態更新リクエスト"
+// @Success      200       {object}  map[string]string                     "更新成功"
+// @Failure      400       {object}  apperrors.ErrorResponse               "リクエストエラー"
+// @Failure      404       {object}  apperrors.ErrorResponse               "商品が見つからない"
+// @Failure      500       {object}  apperrors.ErrorResponse               "内部サーバーエラー"
+// @Router       /admin/items/{item_id}/availability [patch]
+// @Security     BearerAuth
 func (c *adminController) UpdateItemAvailabilityHandler(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "Update item availability")
+	// パスパラメータから商品IDを取得
+	itemIDParam := ctx.Param("item_id")
+	itemID, err := strconv.Atoi(itemIDParam)
+	if err != nil {
+		return apperrors.BadParam.Wrap(err, "商品IDの形式が不正です。")
+	}
+
+	// リクエストボディをバインド
+	var req models.UpdateItemAvailabilityRequest
+	if err := ctx.Bind(&req); err != nil {
+		return apperrors.BadParam.Wrap(err, "リクエスト形式が不正です。")
+	}
+
+	// バリデーション
+	if err := ctx.Validate(req); err != nil {
+		return apperrors.ValidationFailed.Wrap(err, "入力値が不正です。")
+	}
+
+	// サービス層で更新処理
+	if err := c.s.UpdateItemAvailability(ctx.Request().Context(), itemID, req.IsAvailable); err != nil {
+		return err
+	}
+
+	return ctx.JSON(http.StatusOK, map[string]string{
+		"message": "商品の販売状態を更新しました。",
+	})
 }

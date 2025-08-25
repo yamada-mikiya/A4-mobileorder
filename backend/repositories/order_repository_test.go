@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
+	"github.com/A4-dev-team/mobileorder.git/internal/testhelpers"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/google/go-cmp/cmp"
@@ -32,12 +33,12 @@ const (
 	testItemID2 = 2
 
 	// 価格
-	testPrice1 = 100.0
-	testPrice2 = 200.0
+	testPrice1 = 100
+	testPrice2 = 200
 
 	// 金額
-	testAmount1 = 500.0
-	testAmount2 = 1000.0
+	testAmount1 = 500
+	testAmount2 = 1000
 
 	// 数量
 	testQuantity1 = 1
@@ -52,7 +53,7 @@ const (
 	testOrderID5 = 5
 
 	// その他
-	testTotalAmount1   = 1000.0
+	testTotalAmount1   = 1000
 	nonExistentOrderID = 9999
 )
 
@@ -78,7 +79,7 @@ func newTestShopWithLocation(id int, name, location string) models.Shop {
 	}
 }
 
-func newTestItem(id int, name string, price float64) models.Item {
+func newTestItem(id int, name string, price int) models.Item {
 	return models.Item{
 		ItemID:   id,
 		ItemName: name,
@@ -88,12 +89,12 @@ func newTestItem(id int, name string, price float64) models.Item {
 
 func newTestItems() []models.Item {
 	return []models.Item{
-		newTestItem(testItemID1, "Item A", testPrice1),
-		newTestItem(testItemID2, "Item B", testPrice2),
+		newTestItem(testItemID1, "Item A", int(testPrice1)),
+		newTestItem(testItemID2, "Item B", int(testPrice2)),
 	}
 }
 
-func newTestOrderItem(orderID, itemID, quantity int, priceAtOrder float64) models.OrderItem {
+func newTestOrderItem(orderID, itemID, quantity int, priceAtOrder int) models.OrderItem {
 	return models.OrderItem{
 		OrderID:      orderID,
 		ItemID:       itemID,
@@ -102,7 +103,7 @@ func newTestOrderItem(orderID, itemID, quantity int, priceAtOrder float64) model
 	}
 }
 
-func newTestOrder(userID, shopID int, totalAmount float64, status models.OrderStatus) *models.Order {
+func newTestOrder(userID, shopID int, totalAmount int, status models.OrderStatus) *models.Order {
 	return &models.Order{
 		UserID:      sql.NullInt64{Int64: int64(userID), Valid: true},
 		ShopID:      shopID,
@@ -214,13 +215,13 @@ func TestOrderRepository_CreateOrder(t *testing.T) {
 				}
 			}
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.CreateOrder(ctx, tt.order, tt.items)
+			repo := repositories.NewOrderRepository()
+			err := repo.CreateOrder(ctx, tx, tt.order, tt.items)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// 注文が正しく作成されているかチェック
 				if tt.order.OrderID == 0 {
@@ -321,6 +322,33 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 			},
 			expectedErrCode: apperrors.NoData,
 		},
+		{
+			name:        "異常系: 既にuser_idが設定されている注文は更新できない",
+			guestToken:  testGuestToken1,
+			userIDToSet: testUserID2,
+			setup: func(t *testing.T, tx *sqlx.Tx) {
+				// テスト前提データの作成
+				createTestUser(t, tx, testUserID1, fmt.Sprintf("user%d@test.com", testUserID1))
+				createTestUser(t, tx, testUserID2, fmt.Sprintf("user%d@test.com", testUserID2))
+				createTestShop(t, tx, testShopID1, fmt.Sprintf("Test Shop %d", testShopID1))
+
+				// アイテムを直接作成
+				items := newTestItems()
+				for _, item := range items {
+					_, err := tx.NamedExec(`INSERT INTO items (item_id, item_name, price) VALUES (:item_id, :item_name, :price)`, item)
+					if err != nil {
+						t.Fatalf("アイテムの挿入に失敗しました: %v", err)
+					}
+				}
+
+				// 既にuser_idが設定されている注文を作成
+				tx.MustExec(`
+					INSERT INTO orders (shop_id, user_id, order_date, total_amount, guest_order_token, status)
+					VALUES ($1, $2, NOW(), $3, $4, $5)
+				`, testShopID1, testUserID1, testAmount2, testGuestToken1, models.Cooking)
+			},
+			expectedErrCode: apperrors.Conflict,
+		},
 	}
 
 	for _, tt := range tests {
@@ -337,13 +365,13 @@ func TestOrderRepository_UpdateUserIDByGuestToken(t *testing.T) {
 				tt.setup(t, tx)
 			}
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.UpdateUserIDByGuestToken(ctx, tt.guestToken, tt.userIDToSet)
+			repo := repositories.NewOrderRepository()
+			err := repo.UpdateUserIDByGuestToken(ctx, tx, tt.guestToken, tt.userIDToSet)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.assertion != nil {
 					tt.assertion(t, tx)
 				}
@@ -460,13 +488,13 @@ func TestOrderRepository_FindActiveUserOrders(t *testing.T) {
 
 			setupActiveUserOrdersData(t, tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindActiveUserOrders(ctx, tt.userID)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindActiveUserOrders(ctx, tx, tt.userID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.assertion != nil {
 					tt.assertion(t, got)
 				}
@@ -618,14 +646,14 @@ func TestOrderRepository_FindItemsByOrderIDs(t *testing.T) {
 			setupItemsByOrderIDsData(t, tx)
 
 			// リポジトリ作成とテスト実行
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindItemsByOrderIDs(ctx, tt.orderIDs)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindItemsByOrderIDs(ctx, tx, tt.orderIDs)
 
 			// 結果のアサーション
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.assertion != nil {
 					tt.assertion(t, got)
 				}
@@ -692,13 +720,13 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindOrderByIDAndUser(context.Background(), tt.orderID, tt.userID)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindOrderByIDAndUser(context.Background(), tx, tt.orderID, tt.userID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if tt.want != nil {
 					// 注文の詳細を検証
 					if got == nil {
@@ -718,7 +746,7 @@ func TestFindOrderByIDAndUser(t *testing.T) {
 						t.Errorf("Status: expected %v, got %v", tt.want.Status, got.Status)
 					}
 					if tt.want.TotalAmount != got.TotalAmount {
-						t.Errorf("TotalAmount: expected %f, got %f", tt.want.TotalAmount, got.TotalAmount)
+						t.Errorf("TotalAmount: expected %d, got %d", tt.want.TotalAmount, got.TotalAmount)
 					}
 				}
 			}
@@ -778,13 +806,13 @@ func TestCountWaitingOrders(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.CountWaitingOrders(context.Background(), tt.shopID, tt.orderDate)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.CountWaitingOrders(context.Background(), tx, tt.shopID, tt.orderDate)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 				if got != tt.want {
 					t.Errorf("expected count %d, got %d", tt.want, got)
 				}
@@ -860,13 +888,13 @@ func TestFindShopOrdersByStatuses(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindShopOrdersByStatuses(context.Background(), tt.shopID, tt.statuses)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindShopOrdersByStatuses(context.Background(), tx, tt.shopID, tt.statuses)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				if len(got) != len(tt.want) {
 					t.Errorf("expected %d orders, got %d", len(tt.want), len(got))
@@ -886,7 +914,7 @@ func TestFindShopOrdersByStatuses(t *testing.T) {
 						t.Errorf("order %d: expected CustomerEmail %v, got %v", i, want.CustomerEmail, got[i].CustomerEmail)
 					}
 					if got[i].TotalAmount != want.TotalAmount {
-						t.Errorf("order %d: expected TotalAmount %f, got %f", i, want.TotalAmount, got[i].TotalAmount)
+						t.Errorf("order %d: expected TotalAmount %d, got %d", i, want.TotalAmount, got[i].TotalAmount)
 					}
 					if got[i].Status != want.Status {
 						t.Errorf("order %d: expected Status %v, got %v", i, want.Status, got[i].Status)
@@ -955,13 +983,13 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			got, err := repo.FindOrderByIDAndShopID(context.Background(), tt.orderID, tt.shopID)
+			repo := repositories.NewOrderRepository()
+			got, err := repo.FindOrderByIDAndShopID(context.Background(), tx, tt.orderID, tt.shopID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				if tt.want != nil {
 					// 注文の詳細を検証
@@ -982,7 +1010,7 @@ func TestFindOrderByIDAndShopID(t *testing.T) {
 						t.Errorf("Status: expected %v, got %v", tt.want.Status, got.Status)
 					}
 					if tt.want.TotalAmount != got.TotalAmount {
-						t.Errorf("TotalAmount: expected %f, got %f", tt.want.TotalAmount, got.TotalAmount)
+						t.Errorf("TotalAmount: expected %d, got %d", tt.want.TotalAmount, got.TotalAmount)
 					}
 				} else {
 					if got != nil {
@@ -1046,13 +1074,13 @@ func TestUpdateOrderStatus(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.UpdateOrderStatus(context.Background(), tt.orderID, tt.shopID, tt.newStatus)
+			repo := repositories.NewOrderRepository()
+			err := repo.UpdateOrderStatus(context.Background(), tx, tt.orderID, tt.shopID, tt.newStatus)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// 正常に更新された場合は実際にステータスが変更されているか確認
 				var status models.OrderStatus
@@ -1116,13 +1144,13 @@ func TestDeleteOrderByIDAndShopID(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewOrderRepository(tx)
-			err := repo.DeleteOrderByIDAndShopID(context.Background(), tt.orderID, tt.shopID)
+			repo := repositories.NewOrderRepository()
+			err := repo.DeleteOrderByIDAndShopID(context.Background(), tx, tt.orderID, tt.shopID)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// 正常に削除された場合は実際に注文が削除されているか確認
 				var count int

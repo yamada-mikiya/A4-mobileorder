@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/A4-dev-team/mobileorder.git/apperrors"
+	"github.com/A4-dev-team/mobileorder.git/internal/testhelpers"
 	"github.com/A4-dev-team/mobileorder.git/models"
 	"github.com/A4-dev-team/mobileorder.git/repositories"
 	"github.com/jmoiron/sqlx"
@@ -93,13 +94,13 @@ func TestCreateUser(t *testing.T) {
 
 			tt.setup(tx)
 
-			repo := repositories.NewUserRepository(tx)
-			err := repo.CreateUser(context.Background(), tt.user)
+			repo := repositories.NewUserRepository()
+			err := repo.CreateUser(context.Background(), tx, tt.user)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				// データベースに実際に保存されているか確認
 				var count int
@@ -170,17 +171,17 @@ func TestGetUserByEmail(t *testing.T) {
 
 			expectedUser := tt.setup(tx)
 
-			repo := repositories.NewUserRepository(tx)
-			got, err := repo.GetUserByEmail(context.Background(), tt.email)
+			repo := repositories.NewUserRepository()
+			got, err := repo.GetUserByEmail(context.Background(), tx, tt.email)
 
 			if tt.expectedErrCode != "" {
-				assertAppError(t, err, tt.expectedErrCode)
+				testhelpers.AssertAppError(t, err, tt.expectedErrCode)
 				// エラーケースでは空のユーザーが返される
 				if got.UserID != 0 || got.Email != "" {
 					t.Errorf("エラーケースで空でないユーザーが返されました: %+v", got)
 				}
 			} else {
-				assertNoError(t, err)
+				testhelpers.AssertNoError(t, err)
 
 				if expectedUser == nil {
 					t.Fatal("expectedUser is nil")

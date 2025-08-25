@@ -22,22 +22,22 @@ type OrderServicer interface {
 type orderService struct {
 	orr repositories.OrderRepository
 	itr repositories.ItemRepository
-	tm  TransactionManager
+	db  *sqlx.DB
 }
 
 func NewOrderService(orr repositories.OrderRepository, itr repositories.ItemRepository, db *sqlx.DB) OrderServicer {
 	return &orderService{
 		orr: orr,
 		itr: itr,
-		tm:  NewTransactionManager(db),
+		db:  db,
 	}
 }
 
-func NewOrderServiceForTest(orr repositories.OrderRepository, itr repositories.ItemRepository, tm TransactionManager) OrderServicer {
+func NewOrderServiceForTest(orr repositories.OrderRepository, itr repositories.ItemRepository, db *sqlx.DB) OrderServicer {
 	return &orderService{
 		orr: orr,
 		itr: itr,
-		tm:  tm,
+		db:  db,
 	}
 }
 
@@ -52,73 +52,91 @@ func generateguestToken() (string, error) {
 
 // ログイン(サインアップ)できてない状態で注文作成
 func (s *orderService) CreateOrder(ctx context.Context, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
-	var result *models.Order
-	err := s.tm.WithOrderTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
-		// 商品の検証にはインスタンスフィールドのリポジトリを使用
-		totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, s.itr, shopID, items)
-		if err != nil {
-			return err
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				err = apperrors.Unknown.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
 		}
+	}()
 
-		guestToken, err := generateguestToken()
-		if err != nil {
-			return apperrors.Unknown.Wrap(err, "ゲストトークンの生成に失敗しました。")
-		}
-
-		order := &models.Order{
-			ShopID:          shopID,
-			TotalAmount:     totalAmount,
-			Status:          models.Cooking,
-			GuestOrderToken: sql.NullString{String: guestToken, Valid: true},
-		}
-
-		if err := txOrderRepo.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
-			return err
-		}
-
-		result = order
-		return nil
-	})
-
+	// 商品の検証
+	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, tx, s.itr, shopID, items)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+
+	guestToken, err := generateguestToken()
+	if err != nil {
+		return nil, apperrors.Unknown.Wrap(err, "ゲストトークンの生成に失敗しました。")
+	}
+
+	order := &models.Order{
+		ShopID:          shopID,
+		TotalAmount:     totalAmount,
+		Status:          models.Cooking,
+		GuestOrderToken: sql.NullString{String: guestToken, Valid: true},
+	}
+
+	if err := s.orr.CreateOrder(ctx, tx, order, orderItemsToCreate); err != nil {
+		return nil, err
+	}
+
+	return order, nil
 }
 
 // ログイン(サインアップ)できてる状態で注文作成
 func (s *orderService) CreateAuthenticatedOrder(ctx context.Context, userID int, shopID int, items []models.OrderItemRequest) (*models.Order, error) {
-	var result *models.Order
-	err := s.tm.WithOrderTransaction(ctx, func(txOrderRepo repositories.OrderRepository) error {
-		// 商品の検証にはインスタンスフィールドのリポジトリを使用
-		totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, s.itr, shopID, items)
-		if err != nil {
-			return err
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, apperrors.Unknown.Wrap(err, "トランザクションの開始に失敗しました。")
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				err = apperrors.Unknown.Wrap(err, "トランザクションのコミットに失敗しました。")
+			}
 		}
+	}()
 
-		order := &models.Order{
-			UserID:      sql.NullInt64{Int64: int64(userID), Valid: true},
-			ShopID:      shopID,
-			TotalAmount: totalAmount,
-			Status:      models.Cooking,
-		}
-
-		if err := txOrderRepo.CreateOrder(ctx, order, orderItemsToCreate); err != nil {
-			return err
-		}
-
-		result = order
-		return nil
-	})
-
+	// 商品の検証
+	totalAmount, orderItemsToCreate, err := s.validateAndPrepareOrderItems(ctx, tx, s.itr, shopID, items)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+
+	order := &models.Order{
+		UserID:      sql.NullInt64{Int64: int64(userID), Valid: true},
+		ShopID:      shopID,
+		TotalAmount: totalAmount,
+		Status:      models.Cooking,
+	}
+
+	if err := s.orr.CreateOrder(ctx, tx, order, orderItemsToCreate); err != nil {
+		return nil, err
+	}
+
+	return order, nil
 }
 
 // 商品が店のものとあっているかの検証と合計金額とorder_itemテーブルに入れるためのデータを作るヘルパーメソッド
-func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr repositories.ItemRepository, shopID int, items []models.OrderItemRequest) (float64, []models.OrderItem, error) {
+func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, dbtx repositories.DBTX, itr repositories.ItemRepository, shopID int, items []models.OrderItemRequest) (int, []models.OrderItem, error) {
 
 	if len(items) == 0 {
 		return 0, nil, apperrors.BadParam.Wrap(nil, "注文には少なくとも1つの商品が必要です。")
@@ -129,12 +147,12 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr rep
 		itemIDs[i] = item.ItemID
 	}
 	//店に所属する商品IDに対する商品のマップを取得
-	validItemMap, err := itr.ValidateAndGetItemsForShop(ctx, shopID, itemIDs)
+	validItemMap, err := itr.ValidateAndGetItemsForShop(ctx, dbtx, shopID, itemIDs)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	var totalAmount float64 = 0
+	var totalAmount int = 0
 	orderItemsToCreate := make([]models.OrderItem, len(items))
 	for i, item := range items {
 		itemModel := validItemMap[item.ItemID]
@@ -144,7 +162,7 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr rep
 		}
 
 		priceAtOrder := itemModel.Price
-		totalAmount += priceAtOrder * float64(item.Quantity)
+		totalAmount += priceAtOrder * item.Quantity
 
 		orderItemsToCreate[i] = models.OrderItem{
 			ItemID:       item.ItemID,
@@ -158,7 +176,7 @@ func (s *orderService) validateAndPrepareOrderItems(ctx context.Context, itr rep
 // GetUserOrders は、注文一覧ページのためのやつ
 func (s *orderService) GetUserOrders(ctx context.Context, userID int) ([]models.OrderListResponse, error) {
 
-	orders, err := s.orr.FindActiveUserOrders(ctx, userID)
+	orders, err := s.orr.FindActiveUserOrders(ctx, s.db, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +189,7 @@ func (s *orderService) GetUserOrders(ctx context.Context, userID int) ([]models.
 		orderIDs[i] = o.OrderID
 	}
 
-	orderItemsMap, err := s.orr.FindItemsByOrderIDs(ctx, orderIDs)
+	orderItemsMap, err := s.orr.FindItemsByOrderIDs(ctx, s.db, orderIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -196,14 +214,14 @@ func (s *orderService) GetUserOrders(ctx context.Context, userID int) ([]models.
 // GetOrderStatus は、単一注文のステータスと待ち人数を取得
 func (s *orderService) GetOrderStatus(ctx context.Context, userID int, orderID int) (*models.OrderStatusResponse, error) {
 
-	order, err := s.orr.FindOrderByIDAndUser(ctx, orderID, userID)
+	order, err := s.orr.FindOrderByIDAndUser(ctx, s.db, orderID, userID)
 	if err != nil {
 		return nil, err
 	}
 
 	var waitingCount int
 	if order.Status == models.Cooking {
-		waitingCount, err = s.orr.CountWaitingOrders(ctx, order.ShopID, order.OrderDate)
+		waitingCount, err = s.orr.CountWaitingOrders(ctx, s.db, order.ShopID, order.OrderDate)
 		if err != nil {
 			return nil, err
 		}

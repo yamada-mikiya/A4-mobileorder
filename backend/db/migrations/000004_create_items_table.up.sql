@@ -2,7 +2,7 @@ CREATE TABLE items (
     item_id SERIAL PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
     description TEXT,
-    price DECIMAL(10, 2) NOT NULL,
+    price INTEGER NOT NULL,
     is_available BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()

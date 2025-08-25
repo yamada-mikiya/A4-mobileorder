@@ -66,7 +66,7 @@ CREATE TABLE items (
     item_id SERIAL PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
     description TEXT,
-    price DECIMAL(10, 2) NOT NULL,
+    price INTEGER NOT NULL,
     is_available BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -100,7 +100,7 @@ CREATE TABLE orders (
     user_id INT,
     shop_id INT NOT NULL,
     order_date TIMESTAMP NOT NULL,
-    total_amount DECIMAL(10, 2) NOT NULL,
+    total_amount INTEGER NOT NULL,
     guest_order_token VARCHAR(255) UNIQUE NULL,
     status SMALLINT NOT NULL DEFAULT 1, -- 1: Cooking, 2: Completed, 3: Handed
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -120,7 +120,7 @@ CREATE TABLE order_item (
     order_id INT NOT NULL,
     item_id INT NOT NULL,
     quantity INT NOT NULL,
-    price_at_order DECIMAL(10, 2) NOT NULL,
+    price_at_order INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,

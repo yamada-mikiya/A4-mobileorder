@@ -10,19 +10,20 @@ import (
 )
 
 type ItemRepository interface {
-	ValidateAndGetItemsForShop(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error)
-	GetItemList(shopID int) ([]models.ItemListResponse, error)
+	ValidateAndGetItemsForShop(ctx context.Context, dbtx DBTX, shopID int, itemIDs []int) (map[int]models.Item, error)
+	GetItemList(dbtx DBTX, shopID int) ([]models.ItemListResponse, error)
+	UpdateItemAvailability(ctx context.Context, dbtx DBTX, itemID int, isAvailable bool) error
 }
 
 type itemRepository struct {
-	db DBTX
+	// ステートレスリポジトリ - DBTXは各メソッドで受け取る
 }
 
-func NewItemRepository(db DBTX) ItemRepository {
-	return &itemRepository{db}
+func NewItemRepository() ItemRepository {
+	return &itemRepository{}
 }
 
-func (r *itemRepository) ValidateAndGetItemsForShop(ctx context.Context, shopID int, itemIDs []int) (map[int]models.Item, error) {
+func (r *itemRepository) ValidateAndGetItemsForShop(ctx context.Context, dbtx DBTX, shopID int, itemIDs []int) (map[int]models.Item, error) {
 	//商品IDで商品情報取得
 	itemMap := make(map[int]models.Item)
 
@@ -48,10 +49,10 @@ func (r *itemRepository) ValidateAndGetItemsForShop(ctx context.Context, shopID 
 	if err != nil {
 		return nil, apperrors.GetDataFailed.Wrap(err, "データベースクエリの構築に失敗しました。")
 	}
-	query = r.db.Rebind(query)
+	query = dbtx.Rebind(query)
 
 	var items []models.Item
-	if err := r.db.SelectContext(ctx, &items, query, args...); err != nil {
+	if err := dbtx.SelectContext(ctx, &items, query, args...); err != nil {
 		return nil, apperrors.GetDataFailed.Wrap(err, "店舗の所属商品情報の取得に失敗しました。")
 	}
 
@@ -67,7 +68,53 @@ func (r *itemRepository) ValidateAndGetItemsForShop(ctx context.Context, shopID 
 
 }
 
-func (r *itemRepository) GetItemList(shopID int) ([]models.ItemListResponse, error) {
-	//TODO
-	return nil, nil
+func (r *itemRepository) GetItemList(dbtx DBTX, shopID int) ([]models.ItemListResponse, error) {
+	query := `
+		SELECT i.item_id, i.item_name, i.description, i.price, i.is_available
+		FROM items i
+		INNER JOIN shop_item si ON i.item_id = si.item_id
+		WHERE si.shop_id = $1
+		ORDER BY i.item_id
+	`
+
+	var items []models.Item
+	if err := dbtx.SelectContext(context.Background(), &items, query, shopID); err != nil {
+		return nil, apperrors.GetDataFailed.Wrap(err, "商品一覧の取得に失敗しました。")
+	}
+
+	var response []models.ItemListResponse
+	for _, item := range items {
+		itemResponse := models.ItemListResponse{
+			ItemID:      item.ItemID,
+			ItemName:    item.ItemName,
+			Description: item.Description,
+			Price:       item.Price,
+			IsAvailable: item.IsAvailable,
+		}
+
+		response = append(response, itemResponse)
+	}
+
+	return response, nil
+}
+
+// UpdateItemAvailability は商品の販売状態を更新します
+func (r *itemRepository) UpdateItemAvailability(ctx context.Context, dbtx DBTX, itemID int, isAvailable bool) error {
+	query := `UPDATE items SET is_available = $1, updated_at = NOW() WHERE item_id = $2`
+
+	result, err := dbtx.ExecContext(ctx, query, isAvailable, itemID)
+	if err != nil {
+		return apperrors.UpdateDataFailed.Wrap(err, "商品の販売状態更新に失敗しました。")
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return apperrors.UpdateDataFailed.Wrap(err, "更新結果の確認に失敗しました。")
+	}
+
+	if rowsAffected == 0 {
+		return apperrors.NoData.Wrap(nil, "指定された商品が見つかりませんでした。")
+	}
+
+	return nil
 }

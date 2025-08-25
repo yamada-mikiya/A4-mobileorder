@@ -8,25 +8,23 @@ import (
 )
 
 type ShopRepository interface {
-	FindShopIDByAdminID(ctx context.Context, userID int) (int, error)
+	FindShopIDByAdminID(ctx context.Context, dbtx DBTX, userID int) (int, error)
 }
 
-type shopRepository struct {
-	db DBTX
+type shopRepository struct{}
+
+func NewShopRepository() ShopRepository {
+	return &shopRepository{}
 }
 
-func NewShopRepository(db DBTX) ShopRepository {
-	return &shopRepository{db}
-}
-
-func (r *shopRepository) FindShopIDByAdminID(ctx context.Context, userID int) (int, error) {
+func (r *shopRepository) FindShopIDByAdminID(ctx context.Context, dbtx DBTX, userID int) (int, error) {
 	var shopIDs []int
 	query := `
 		SELECT s.shop_id FROM shops s
 		INNER JOIN shop_staff ss ON s.shop_id = ss.shop_id
 		WHERE ss.user_id = $1
 	`
-	err := r.db.SelectContext(ctx, &shopIDs, query, userID)
+	err := dbtx.SelectContext(ctx, &shopIDs, query, userID)
 	if err != nil {
 		return 0, apperrors.GetDataFailed.Wrap(err, "管理者所属店舗の取得に失敗しました。")
 	}

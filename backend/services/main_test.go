@@ -1,4 +1,4 @@
-package repositories_test
+package services_test
 
 import (
 	"fmt"
@@ -9,22 +9,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 )
-
-func NewTestDB(t *testing.T) *sqlx.DB {
-	t.Helper()
-
-	dbConn, ok := os.LookupEnv("DATABASE_URL")
-	if !ok {
-		t.Skip("DATABASE_URL environment variable is not set")
-	}
-
-	db, err := sqlx.Connect("postgres", dbConn)
-	if err != nil {
-		t.Skipf("Could not open database connection: %v", err)
-	}
-
-	return db
-}
 
 func TestMain(m *testing.M) {
 	if err := godotenv.Load("../.env"); err != nil {
@@ -52,7 +36,7 @@ func setupTestDatabase() error {
 	}
 	defer db.Close()
 
-	schema, err := os.ReadFile("./testdata/schema.sql")
+	schema, err := os.ReadFile("../repositories/testdata/schema.sql")
 	if err != nil {
 		return fmt.Errorf("failed to read schema file: %w", err)
 	}

@@ -3,9 +3,9 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"time"
 
+	"github.com/A4-dev-team/mobileorder.git/apperrors"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -46,10 +46,11 @@ func (r *UserRole) UnmarshalJSON(b []byte) error {
 	case "admin":
 		*r = AdminRole
 	default:
-		return errors.New("invalid role")
+		return apperrors.ValidationFailed.Wrap(nil, "不正なロール値です: "+s)
 	}
 	return nil
 }
+
 // -----------------定義終わり--------------------------
 
 // --- OrderStatus 型と定数の定義 ---
@@ -92,10 +93,11 @@ func (s *OrderStatus) UnmarshalJSON(b []byte) error {
 	case "handed":
 		*s = Handed
 	default:
-		return errors.New("invalid status")
+		return apperrors.ValidationFailed.Wrap(nil, "不正なステータス値です: "+str)
 	}
 	return nil
 }
+
 // ---------------定義終わり----------------
 
 type User struct {
@@ -132,7 +134,7 @@ type Order struct {
 	UserID          sql.NullInt64  `db:"user_id"` // ゲスト注文ではNULLになる
 	ShopID          int            `db:"shop_id"`
 	OrderDate       time.Time      `db:"order_date"`
-	TotalAmount     float64        `db:"total_amount"`
+	TotalAmount     int            `db:"total_amount"`
 	GuestOrderToken sql.NullString `db:"guest_order_token"` // ゲスト注文では一時的なトークンが入る
 	Status          OrderStatus    `db:"status"`
 	CreatedAt       time.Time      `db:"created_at"`
@@ -143,7 +145,7 @@ type Item struct {
 	ItemID      int       `json:"item_id" db:"item_id"`
 	ItemName    string    `json:"item_name" db:"item_name"`
 	Description string    `json:"description" db:"description"`
-	Price       float64   `json:"price" db:"price"`
+	Price       int       `json:"price" db:"price"`
 	IsAvailable bool      `json:"is_available" db:"is_available"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
@@ -154,7 +156,7 @@ type OrderItem struct {
 	OrderID      int       `db:"order_id"`
 	ItemID       int       `db:"item_id"`
 	Quantity     int       `db:"quantity"`
-	PriceAtOrder float64   `db:"price_at_order"`
+	PriceAtOrder int       `db:"price_at_order"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 }

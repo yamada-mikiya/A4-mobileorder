@@ -1,9 +1,19 @@
 # mobileorder backend Makefile
 
-.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help
+.PHONY: test test-controllers test-services test-repositories test-validators test-coverage test-integration clean help setup-mockdata up down
 
 # デフォルトターゲット
 all: test
+
+# mockDataの再挿入（Docker DB用）
+setup-mockdata:
+	@echo "🗄️  Docker DBにmockDataを挿入..."
+	@if ! docker compose ps | grep -q "postgres-db.*Up"; then \
+		echo "❌ Docker Compose DBが起動していません。'docker compose up -d' を実行してください。"; \
+		exit 1; \
+	fi
+	@cat mockData.sql | docker compose exec -T db psql -U myuser -d mydb
+	@echo "✅ mockData挿入完了"
 
 # 全てのテストを順次実行
 test:
@@ -34,6 +44,8 @@ test-controllers:
 test-services:
 	@echo "🧪 サービス層の全テスト実行..."
 	@mkdir -p coverage
+	@echo "📥 データベースにmockDataを挿入中..."
+	@$(MAKE) setup-mockdata > /dev/null 2>&1 || echo "⚠️  mockData挿入をスキップ（Docker未起動またはDBエラー）"
 	@export DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" && \
 	go test ./services -v -coverprofile=coverage/services.out -covermode=atomic
 	@echo "✅ サービス層: 完了"
@@ -42,6 +54,8 @@ test-services:
 test-repositories:
 	@echo "🧪 リポジトリ層のテスト実行..."
 	@mkdir -p coverage
+	@echo "📥 データベースにmockDataを挿入中..."
+	@$(MAKE) setup-mockdata > /dev/null 2>&1 || echo "⚠️  mockData挿入をスキップ（Docker未起動またはDBエラー）"
 	@export DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" && \
 	go test ./repositories -v -coverprofile=coverage/repositories.out -covermode=atomic
 	@echo "✅ リポジトリ層: 完了"
@@ -72,6 +86,8 @@ coverage-summary:
 # 統合テストのみ実行
 test-integration:
 	@echo "🧪 統合テスト実行..."
+	@echo "📥 データベースにmockDataを挿入中..."
+	@$(MAKE) setup-mockdata > /dev/null 2>&1 || echo "⚠️  mockData挿入をスキップ（Docker未起動またはDBエラー）"
 	@export DATABASE_URL="postgres://myuser:mypassword@localhost:5432/mydb?sslmode=disable" && \
 	echo "🔗 データベース接続URL: $$DATABASE_URL" && \
 	go test -run="Integration" ./services -v
@@ -87,6 +103,7 @@ clean:
 help:
 	@echo "使用可能なコマンド:"
 	@echo "  make test              - 全てのテストを順次実行（推奨）"
+	@echo "  make setup-mockdata    - Docker DBにmockDataを再挿入"
 	@echo "  make test-validators   - バリデーター層のみテスト"
 	@echo "  make test-controllers  - コントローラー層のみテスト"
 	@echo "  make test-services     - サービス層のみテスト"
@@ -95,4 +112,14 @@ help:
 	@echo "  make test-coverage     - カバレッジレポート生成"
 	@echo "  make coverage-summary  - カバレッジサマリー表示"
 	@echo "  make clean             - テスト結果ファイルをクリーンアップ"
+	@echo "  make up                - Docker Composeサービスを起動（ビルド付き）"
+	@echo "  make down              - Docker Composeサービスを停止（ボリューム削除）"
 	@echo "  make help              - このヘルプを表示"
+
+# Docker Compose コマンド
+up:
+	docker compose up --build
+
+down:
+	docker compose down -v
+
